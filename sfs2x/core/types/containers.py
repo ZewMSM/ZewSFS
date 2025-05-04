@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional
 
 from ..buffer import Buffer
 from ..field import Field
@@ -28,7 +28,7 @@ class SFSObject(Field[Dict[str, Field]]):
 
     value: Dict[str, Field]
 
-    def __init__(self, value: Dict[str, Field] = None):
+    def __init__(self, value: Optional[Dict[str, Field]] = None):
         if value is None:
             value = {}
         self.value = value
@@ -64,7 +64,7 @@ class SFSArray(Field[List[Field]]):
 
     value: List[Field]
 
-    def __init__(self, value: List[Field]):
+    def __init__(self, value: Optional[List[Field]]):
         if value is None:
             value = []
         self.value = value

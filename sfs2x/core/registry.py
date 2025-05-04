@@ -1,8 +1,6 @@
 from typing import Protocol, ClassVar, Any, Dict, Type, runtime_checkable
 
 from .buffer import Buffer
-from .utils import read_small_string
-
 
 @runtime_checkable
 class Packable(Protocol):

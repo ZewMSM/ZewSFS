@@ -131,8 +131,6 @@ class Text(Field[str]):
     type_code: ClassVar[int] = TypeCode.TEXT
 
     def to_bytes(self) -> bytearray:
-        encoded = self.value.encode('utf-8')
-
         payload = bytearray()
         payload.append(self.type_code)
         payload += write_big_string(self.value)

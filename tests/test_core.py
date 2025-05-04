@@ -76,6 +76,8 @@ def test_prefixed_string_helpers():
     unpacked = read_small_string(Buffer(packed))
     assert unpacked == text
 
+
+# noinspection PyArgumentList
 @pytest.mark.parametrize("cls,sample", SAMPLE_TYPES_VALUES.items())
 def test_roundtrip_all_types(cls, sample):
     inst = cls(sample)
