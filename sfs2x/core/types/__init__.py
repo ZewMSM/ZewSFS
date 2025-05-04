@@ -1,5 +1,6 @@
-from .primitives import Bool, Byte, Short, Int, Long, Float, Double, UtfString
+from .primitives import Bool, Byte, Short, Int, Long, Float, Double, UtfString, Text
 from .arrays import BoolArray, ByteArray, ShortArray, IntArray, LongArray, FloatArray, DoubleArray, UtfStringArray
+from .containers import Class, SFSObject
 
 __all__ = [
     # Primitives
@@ -11,6 +12,7 @@ __all__ = [
     "Float",
     "Double",
     "UtfString",
+    "Text",
     # Arrays
     "BoolArray",
     "ByteArray",

@@ -1,9 +1,9 @@
 from .buffer import Buffer
 from .registry import decode, register
 from .type_codes import TypeCode
-from sfs2x.core.types import (Bool, Byte, Short, Int, Long, Float, Double, UtfString,
+from sfs2x.core.types import (Bool, Byte, Short, Int, Long, Float, Double, UtfString, Text,
                               BoolArray, ByteArray, ShortArray, IntArray, LongArray,
-                              FloatArray, DoubleArray, UtfStringArray)
+                              FloatArray, DoubleArray, UtfStringArray, Class, SFSObject)
 
 __all__ = [
     "Buffer",
@@ -19,6 +19,7 @@ __all__ = [
     "Float",
     "Double",
     "UtfString",
+    "Text",
     "BoolArray",
     "ByteArray",
     "ShortArray",
@@ -27,4 +28,6 @@ __all__ = [
     "FloatArray",
     "DoubleArray",
     "UtfStringArray",
+    "Class",
+    "SFSObject",
 ]

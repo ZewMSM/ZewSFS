@@ -22,3 +22,5 @@ class TypeCode(IntEnum):
     UTF_STRING_ARRAY = 16
     SFS_ARRAY = 17
     SFS_OBJECT = 18
+    CLASS = 19
+    TEXT = 20

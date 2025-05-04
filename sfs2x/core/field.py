@@ -2,11 +2,12 @@ from dataclasses import dataclass
 from typing import TypeVar, Generic, ClassVar
 
 from .buffer import Buffer
+from .registry import Packable
 
 T = TypeVar('T')
 
 @dataclass(slots=True)
-class Field(Generic[T]):
+class Field(Packable, Generic[T]):
     name: str
     value: T
 

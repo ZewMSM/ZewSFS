@@ -119,3 +119,22 @@ class UtfString(Field[str]):
     def from_buffer(cls, name: str, buf: Buffer, /):
         value = read_prefixed_string(buf)
         return cls(name, value)
+
+@register
+@dataclass(slots=True)
+class Text(Field[str]):
+    type_code: ClassVar[int] = TypeCode.TEXT
+
+    def to_bytes(self) -> bytearray:
+        encoded = self.value.encode('utf-8')
+
+        payload = write_prefixed_string(self.name)
+        payload.append(self.type_code)
+        payload += bytearray(len(encoded).to_bytes(4, 'big') + encoded)
+        return payload
+
+    @classmethod
+    def from_buffer(cls, name: str, buf: Buffer, /):
+        ln = int.from_bytes(buf.read(4), "big")
+        value = bytes(buf.read(ln)).decode("utf-8")
+        return cls(name, value)

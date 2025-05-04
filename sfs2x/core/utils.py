@@ -6,6 +6,8 @@ __all__ = [
 ]
 
 def write_prefixed_string(s: str) -> bytearray:
+    if len(s) == 0:
+        return bytearray()
     encoded = s.encode("utf-8")
     return bytearray(len(encoded).to_bytes(2, 'big') + encoded)
 

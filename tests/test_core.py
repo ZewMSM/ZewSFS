@@ -1,11 +1,11 @@
 import pytest
 
 from sfs2x.core import (decode, Buffer, Bool, Byte, Short, Int, Long, Float, Double, UtfString,
-                        BoolArray, ByteArray, ShortArray, IntArray, LongArray, FloatArray,
-                        DoubleArray, UtfStringArray)
+                        Text, BoolArray, ByteArray, ShortArray, IntArray, LongArray, FloatArray,
+                        DoubleArray, UtfStringArray, SFSObject)
 from sfs2x.core.utils import read_prefixed_string, write_prefixed_string
 
-SAMPLE_VALUES = {
+SAMPLE_TYPES_VALUES = {
     Bool: False,
     Byte: 100,
     Short: 16200,
@@ -22,7 +22,29 @@ SAMPLE_VALUES = {
     FloatArray: [3.14, 3.14, 3.14],
     DoubleArray: [-92.14, -92.14, -92.14],
     UtfStringArray: ["Hello, world!", "i'm - Zewsic", "Nice to meet you!"],
+    Text: "Lorem Ipsum " * 10000,
+    SFSObject: {
+        "number": Int("", 12),
+        "string": UtfString("", "Hello, world!"),
+        "double_array": DoubleArray("", [3.14, 3.14, 3.14]),
+        "object": SFSObject("", {
+            "number": Int("", 12),
+        })
+    }
 }
+
+
+SAMPLE_PACKED_VALUES = {
+    b'\x12\x00\x03\x00\x03num\x04\x00\x00\x00\x0c\x00\x03str\x08\x00\x05Hello\x00\x03obj\x12\x00\x01\x00\x05short\x03\xff\xec': SFSObject('', {
+        'num': Int("num", 12),
+        'str': UtfString('str', 'Hello'),
+        'obj': SFSObject('obj', {
+            'short': Short('short', -20)
+        })
+    })
+}
+
+
 
 def test_decode_unknown_type():
     unknown_packet = write_prefixed_string("name") + bytearray([30])
@@ -35,7 +57,7 @@ def test_prefixed_string_helpers():
     unpacked = read_prefixed_string(Buffer(packed))
     assert unpacked == text
 
-@pytest.mark.parametrize("cls,sample", SAMPLE_VALUES.items())
+@pytest.mark.parametrize("cls,sample", SAMPLE_TYPES_VALUES.items())
 def test_roundtrip_all_types(cls, sample):
     inst = cls("field", sample)
 
@@ -53,3 +75,13 @@ def test_roundtrip_all_types(cls, sample):
     assert back.name == "field"
     assert back.type_code == cls.type_code
     assert back.to_bytes() == raw
+
+@pytest.mark.parametrize("packed,non_packed", SAMPLE_PACKED_VALUES.items())
+def test_roundtrip_all_types(packed: bytes, non_packed: SFSObject):
+    new_packed = non_packed.to_bytes()
+    assert packed == new_packed
+
+    repacked = decode(Buffer(packed), skip_name=True)
+    assert repacked == non_packed
+
+

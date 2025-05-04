@@ -23,8 +23,11 @@ def register(cls: Type[Packable]) -> Type[Packable]:
     return cls
 
 
-def decode(buf: Buffer) -> Packable:
-    name = read_prefixed_string(buf)
+def decode(buf: Buffer, skip_name = False):
+    if skip_name:
+        name = ""
+    else:
+        name = read_prefixed_string(buf)
     type_id = int.from_bytes(buf.read(1))
 
     try:
