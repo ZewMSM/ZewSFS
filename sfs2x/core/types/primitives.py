@@ -6,7 +6,12 @@ from ..buffer import Buffer
 from ..field import Field
 from ..registry import register
 from ..type_codes import TypeCode
-from ..utils import write_prefixed_string, read_prefixed_string
+from ..utils import (
+    write_small_string,
+    read_small_string,
+    write_big_string,
+    read_big_string,
+)
 
 
 class _NumericMixin(Field[int]):
@@ -14,15 +19,15 @@ class _NumericMixin(Field[int]):
     type_code: ClassVar[int]
 
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload += self.value.to_bytes(self._size, "big", signed=True)
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer):
+    def from_buffer(cls, buf: Buffer):
         value = int.from_bytes(buf.read(cls._size), "big", signed=True)
-        return cls(name, value)
+        return cls(value)
 
 
 @register
@@ -31,15 +36,15 @@ class Bool(Field[bool]): # type: ignore[arg-type]
     type_code = TypeCode.BOOL
 
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload.append(1 if self.value else 0)
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
+    def from_buffer(cls, buf: Buffer, /):
         value = bool(int.from_bytes(buf.read(1), 'big'))
-        return cls(name, value)
+        return cls(value)
 
 
 @register
@@ -76,15 +81,15 @@ class Float(Field[float]):
     type_code = TypeCode.FLOAT
 
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload += bytearray(struct.pack('f', self.value))
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
+    def from_buffer(cls, buf: Buffer, /):
         value = float(struct.unpack('f', buf.read(4))[0])
-        return cls(name, value)
+        return cls(value)
 
 
 @register
@@ -93,15 +98,15 @@ class Double(Field[float]):
     type_code: ClassVar[int] = TypeCode.DOUBLE
 
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload += bytearray(struct.pack('d', self.value))
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
+    def from_buffer(cls, buf: Buffer, /):
         value = float(struct.unpack('d', buf.read(8))[0])
-        return cls(name, value)
+        return cls(value)
 
 
 @register
@@ -110,15 +115,15 @@ class UtfString(Field[str]):
     type_code: ClassVar[int] = TypeCode.UTF_STRING
 
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
-        payload += write_prefixed_string(self.value)
+        payload += write_small_string(self.value)
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
-        value = read_prefixed_string(buf)
-        return cls(name, value)
+    def from_buffer(cls, buf: Buffer, /):
+        value = read_small_string(buf)
+        return cls(value)
 
 @register
 @dataclass(slots=True)
@@ -128,13 +133,12 @@ class Text(Field[str]):
     def to_bytes(self) -> bytearray:
         encoded = self.value.encode('utf-8')
 
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
-        payload += bytearray(len(encoded).to_bytes(4, 'big') + encoded)
+        payload += write_big_string(self.value)
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
-        ln = int.from_bytes(buf.read(4), "big")
-        value = bytes(buf.read(ln)).decode("utf-8")
-        return cls(name, value)
+    def from_buffer(cls, buf: Buffer, /):
+        value = read_big_string(buf)
+        return cls(value)

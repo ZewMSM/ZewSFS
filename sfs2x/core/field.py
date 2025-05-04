@@ -8,14 +8,12 @@ T = TypeVar('T')
 
 @dataclass(slots=True)
 class Field(Packable, Generic[T]):
-    name: str
-    value: T
-
     type_code: ClassVar[int]
+    value: T
 
     def to_bytes(self) -> bytearray:
         raise NotImplementedError()
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer, /):
+    def from_buffer(cls, buf: Buffer, /):
         raise NotImplementedError()

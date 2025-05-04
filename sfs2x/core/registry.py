@@ -1,19 +1,18 @@
 from typing import Protocol, ClassVar, Any, Dict, Type, runtime_checkable
 
 from .buffer import Buffer
-from .utils import read_prefixed_string
+from .utils import read_small_string
 
 
 @runtime_checkable
 class Packable(Protocol):
     type_code: ClassVar[int]
-    name: str
     value: Any
 
     def to_bytes(self) -> bytearray: ...
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer) -> "Packable": ...
+    def from_buffer(cls, buf: Buffer) -> "Packable": ...
 
 _registry: Dict[int, Type[Packable]] = {}
 
@@ -23,11 +22,7 @@ def register(cls: Type[Packable]) -> Type[Packable]:
     return cls
 
 
-def decode(buf: Buffer, skip_name = False):
-    if skip_name:
-        name = ""
-    else:
-        name = read_prefixed_string(buf)
+def decode(buf: Buffer):
     type_id = int.from_bytes(buf.read(1))
 
     try:
@@ -35,4 +30,4 @@ def decode(buf: Buffer, skip_name = False):
     except KeyError as e:
         raise ValueError("Unknown type") from e
 
-    return cls.from_buffer(name, buf)
+    return cls.from_buffer(buf)

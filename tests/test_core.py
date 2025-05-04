@@ -2,8 +2,8 @@ import pytest
 
 from sfs2x.core import (decode, Buffer, Bool, Byte, Short, Int, Long, Float, Double, UtfString,
                         Text, BoolArray, ByteArray, ShortArray, IntArray, LongArray, FloatArray,
-                        DoubleArray, UtfStringArray, SFSObject)
-from sfs2x.core.utils import read_prefixed_string, write_prefixed_string
+                        DoubleArray, UtfStringArray, SFSObject, SFSArray)
+from sfs2x.core.utils import read_small_string, write_small_string
 
 SAMPLE_TYPES_VALUES = {
     Bool: False,
@@ -24,42 +24,61 @@ SAMPLE_TYPES_VALUES = {
     UtfStringArray: ["Hello, world!", "i'm - Zewsic", "Nice to meet you!"],
     Text: "Lorem Ipsum " * 10000,
     SFSObject: {
-        "number": Int("", 12),
-        "string": UtfString("", "Hello, world!"),
-        "double_array": DoubleArray("", [3.14, 3.14, 3.14]),
-        "object": SFSObject("", {
-            "number": Int("", 12),
+        "number": Int(12),
+        "string": UtfString("Hello, world!"),
+        "double_array": DoubleArray([3.14, 3.14, 3.14]),
+        "object": SFSObject({
+            "number": Int(12),
+            "array": SFSArray([
+                SFSObject({'str_arr': UtfStringArray(['hi', 'antony'])}),
+                SFSObject({"test": Double(3.1333)})
+            ])
         })
-    }
+    },
+    SFSArray: [
+        SFSObject({"int": Int(12)}),
+        Double(3.14),
+        ByteArray([20, -10, 50]),
+        Text('Hello, world!'),
+        BoolArray([True, False, True]),
+    ]
 }
 
 
 SAMPLE_PACKED_VALUES = {
-    b'\x12\x00\x03\x00\x03num\x04\x00\x00\x00\x0c\x00\x03str\x08\x00\x05Hello\x00\x03obj\x12\x00\x01\x00\x05short\x03\xff\xec': SFSObject('', {
-        'num': Int("num", 12),
-        'str': UtfString('str', 'Hello'),
-        'obj': SFSObject('obj', {
-            'short': Short('short', -20)
+    b'\x12\x00\x03\x00\x03num\x04\x00\x00\x00\x0c\x00\x03str\x08\x00\x05Hello\x00\x03obj\x12\x00\x01\x00\x05short\x03\xff\xec': SFSObject({
+        'num': Int(12),
+        'str': UtfString('Hello'),
+        'obj': SFSObject({
+            'short': Short(-20)
         })
-    })
+    }),
+    b'\x11\x00\x04\x04\x00\x00\x00\r\x10\x00\x02\x00\x02hi\x00\x05world\x12\x00\x01\x00\x05short\x03\xff\xec\x11\x00\x01\t\x00\x02\x00\x01': SFSArray([
+        Int(13),
+        UtfStringArray(['hi', 'world']),
+        SFSObject({'short': Short(-20)}),
+        SFSArray([
+            BoolArray([False, True]),
+        ])
+    ])
 }
 
 
 
 def test_decode_unknown_type():
-    unknown_packet = write_prefixed_string("name") + bytearray([30])
+    unknown_packet = bytearray([30])
     with pytest.raises(ValueError):
         decode(Buffer(unknown_packet))
 
 def test_prefixed_string_helpers():
     text = "Hello, world!"
-    packed = write_prefixed_string(text)
-    unpacked = read_prefixed_string(Buffer(packed))
+    packed = write_small_string(text)
+    unpacked = read_small_string(Buffer(packed))
     assert unpacked == text
 
 @pytest.mark.parametrize("cls,sample", SAMPLE_TYPES_VALUES.items())
 def test_roundtrip_all_types(cls, sample):
-    inst = cls("field", sample)
+    inst = cls(sample)
 
     raw = inst.to_bytes()
     back = decode(Buffer(raw))
@@ -72,16 +91,15 @@ def test_roundtrip_all_types(cls, sample):
     else:
         assert back.value == sample
 
-    assert back.name == "field"
     assert back.type_code == cls.type_code
     assert back.to_bytes() == raw
 
 @pytest.mark.parametrize("packed,non_packed", SAMPLE_PACKED_VALUES.items())
-def test_roundtrip_all_types(packed: bytes, non_packed: SFSObject):
+def test_serialization_compatibility(packed: bytes, non_packed: SFSObject):
     new_packed = non_packed.to_bytes()
-    assert packed == new_packed
+    assert packed == bytes(new_packed)
 
-    repacked = decode(Buffer(packed), skip_name=True)
+    repacked = decode(Buffer(packed))
     assert repacked == non_packed
 
 

@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from ..buffer import Buffer
 from ..field import Field
 from ..registry import register, decode
 from ..type_codes import TypeCode
-from ..utils import write_prefixed_string, read_prefixed_string
+from ..utils import write_small_string, read_small_string
 
 
 @register
@@ -28,23 +28,28 @@ class SFSObject(Field[Dict[str, Field]]):
 
     value: Dict[str, Field]
 
+    def __init__(self, value: Dict[str, Field] = None):
+        if value is None:
+            value = {}
+        self.value = value
+
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload += len(self.value).to_bytes(2, "big")
         for k, v in self.value.items():
-            payload += write_prefixed_string(k)
-            payload += v.__class__("", v.value).to_bytes()
+            payload += write_small_string(k)
+            payload += v.to_bytes()
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer):
+    def from_buffer(cls, buf: Buffer):
         length = int.from_bytes(buf.read(2), "big")
         data: Dict[str, Field] = {}
         for _ in range(length):
-            obj = decode(buf)
-            data[obj.name] = obj
-        return cls(name, data)
+            name = read_small_string(buf)
+            data[name] = decode(buf)
+        return cls(data)
 
     def __getitem__(self, item: str):
         return self.value[item]
@@ -59,18 +64,21 @@ class SFSArray(Field[List[Field]]):
 
     value: List[Field]
 
+    def __init__(self, value: List[Field]):
+        if value is None:
+            value = []
+        self.value = value
+
     def to_bytes(self) -> bytearray:
-        payload = write_prefixed_string(self.name)
+        payload = bytearray()
         payload.append(self.type_code)
         payload += len(self.value).to_bytes(2, "big")
         for elem in self.value:
-            # Элементы в массиве *не* имеют собственного имени.
-            # Для совместимости ставим name="" – decode примет.
-            payload += elem.__class__("", elem.value).to_bytes()
+            payload += elem.to_bytes()
         return payload
 
     @classmethod
-    def from_buffer(cls, name: str, buf: Buffer):
+    def from_buffer(cls, buf: Buffer):
         length = int.from_bytes(buf.read(2), "big")
         arr = [decode(buf) for _ in range(length)]
-        return cls(name, arr)
+        return cls(arr)
