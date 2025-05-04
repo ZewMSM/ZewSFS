@@ -1,4 +1,4 @@
-# ZewSFS Documentation
+# ZewSFS
 
 ZewSFS is a Python implementation of the SmartFoxServer2X protocol, providing both client and server-side functionality. The library is modular, allowing flexible integration into various projects.
 
@@ -9,7 +9,7 @@ ZewSFS is a Python implementation of the SmartFoxServer2X protocol, providing bo
 - **server**: Manages server-side protocol implementation (in development).
 - **orm**: Provides ORM-style interaction with protocol packets (in development).
 
-## Core Module Documentation
+## Core Module
 
 The `core` module defines the essential data types and serialization mechanisms for the SmartFoxServer2X protocol.
 
