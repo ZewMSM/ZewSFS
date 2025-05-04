@@ -16,5 +16,5 @@ class Field(Generic[T]):
         raise NotImplementedError()
 
     @classmethod
-    def from_buffer(cls, buf: Buffer, /):
+    def from_buffer(cls, name: str, buf: Buffer, /):
         raise NotImplementedError()

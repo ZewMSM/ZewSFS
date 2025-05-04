@@ -20,7 +20,6 @@ class Bool(Field[bool]):
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer, /):
-        name = read_prefixed_string(buf)
+    def from_buffer(cls, name: str, buf: Buffer, /):
         value = bool(int.from_bytes(buf.read(1), 'big'))
         return cls(name, value)
