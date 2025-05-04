@@ -104,4 +104,32 @@ def test_serialization_compatibility(packed: bytes, non_packed: SFSObject):
     repacked = decode(Buffer(packed))
     assert repacked == non_packed
 
+def test_coding_styles_compatibility():
+    imperative = SFSObject()
+    imperative.put_int('number', 12)
+    imperative.put_bool('bool', False)
+    imperative.put_sfs_array("arr", SFSArray().add_short(12).add_int(1000).add_utf_string_array(['hi', 'antony']))
+
+    sub_imperative = SFSObject()
+    sub_imperative['num'] = Short(-20)
+    sub_imperative['double_arr'] = DoubleArray([3.14, 3.14, 3.14])
+    imperative.put('obj', sub_imperative)
+
+
+    declarative = SFSObject({
+        'number': Int(12),
+        'bool': Bool(False),
+        'arr': SFSArray([
+            Short(12),
+            Int(1000),
+            UtfStringArray(['hi', 'antony']),
+        ]),
+        'obj': SFSObject({
+            'num': Short(-20),
+            'double_arr': DoubleArray([3.14, 3.14, 3.14]),
+        })
+    })
+
+    assert imperative == declarative
+
 
