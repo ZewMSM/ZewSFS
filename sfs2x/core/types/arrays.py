@@ -2,11 +2,11 @@ import struct
 from dataclasses import dataclass
 from typing import ClassVar
 
-from ..buffer import Buffer
-from ..field import Field
-from ..registry import register
-from ..type_codes import TypeCode
-from ..utils import write_small_string, read_small_string
+from sfs2x.core.buffer import Buffer
+from sfs2x.core.field import Field
+from sfs2x.core.registry import register
+from sfs2x.core.type_codes import TypeCode
+from sfs2x.core.utils import read_small_string, write_small_string
 
 
 class _NumericArrayMixin(Field[list[int]]):
@@ -22,14 +22,19 @@ class _NumericArrayMixin(Field[list[int]]):
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer):
+    def from_buffer(cls, buf: Buffer) -> "_NumericArrayMixin":
         length = int.from_bytes(buf.read(2), "big")
-        arr = [int.from_bytes(buf.read(cls._elem_size), "big", signed=True) for _ in range(length)]
+        arr = [
+            int.from_bytes(buf.read(cls._elem_size), "big", signed=True)
+            for _ in range(length)
+        ]
         return cls(arr)
 
 @register
 @dataclass(slots=True)
 class BoolArray(Field[list[bool]]):
+    """Array with 1-bit numbers (or booleans)."""
+
     type_code = TypeCode.BOOL_ARRAY
 
     def to_bytes(self) -> bytearray:
@@ -41,15 +46,17 @@ class BoolArray(Field[list[bool]]):
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer):
+    def from_buffer(cls, buf: Buffer) -> "BoolArray":
         length = int.from_bytes(buf.read(2), "big")
-        arr = [bool(int.from_bytes(buf.read(1), 'big')) for _ in range(length)]
+        arr = [bool(int.from_bytes(buf.read(1), "big")) for _ in range(length)]
         return cls(arr)
 
 
 @register
 @dataclass(slots=True)
 class ByteArray(_NumericArrayMixin):
+    """Array with 8-bit numbers."""
+
     _elem_size = 1
     type_code = TypeCode.BYTE_ARRAY
 
@@ -57,6 +64,8 @@ class ByteArray(_NumericArrayMixin):
 @register
 @dataclass(slots=True)
 class ShortArray(_NumericArrayMixin):
+    """Array with 16-bit numbers."""
+
     _elem_size = 2
     type_code = TypeCode.SHORT_ARRAY
 
@@ -64,6 +73,8 @@ class ShortArray(_NumericArrayMixin):
 @register
 @dataclass(slots=True)
 class IntArray(_NumericArrayMixin):
+    """Array with 32-bit numbers."""
+
     _elem_size = 4
     type_code = TypeCode.INT_ARRAY
 
@@ -71,6 +82,8 @@ class IntArray(_NumericArrayMixin):
 @register
 @dataclass(slots=True)
 class LongArray(_NumericArrayMixin):
+    """Array with 64-bit numbers."""
+
     _elem_size = 8
     type_code = TypeCode.LONG_ARRAY
 
@@ -78,6 +91,8 @@ class LongArray(_NumericArrayMixin):
 @register
 @dataclass(slots=True)
 class FloatArray(Field[list[float]]):
+    """Array with floats with simple precision."""
+
     type_code = TypeCode.FLOAT_ARRAY
 
     def to_bytes(self) -> bytearray:
@@ -85,19 +100,23 @@ class FloatArray(Field[list[float]]):
         payload.append(self.type_code)
         payload += len(self.value).to_bytes(2, "big")
         for v in self.value:
-            payload += bytearray(struct.pack('f', v))
+            payload += bytearray(struct.pack("f", v))
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer):
+    def from_buffer(cls, buf: Buffer) -> "FloatArray":
         length = int.from_bytes(buf.read(2), "big")
-        arr = [float(struct.unpack('f', buf.read(4))[0]) for _ in range(length)]
+        arr = [
+            float(struct.unpack("f", buf.read(4))[0]) for _ in range(length)
+        ]
         return cls(arr)
 
 
 @register
 @dataclass(slots=True)
 class DoubleArray(Field[list[float]]):
+    """Array with floats with double precision."""
+
     type_code = TypeCode.DOUBLE_ARRAY
 
     def to_bytes(self) -> bytearray:
@@ -105,19 +124,23 @@ class DoubleArray(Field[list[float]]):
         payload.append(self.type_code)
         payload += len(self.value).to_bytes(2, "big")
         for v in self.value:
-            payload += bytearray(struct.pack('d', v))
+            payload += bytearray(struct.pack("d", v))
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer):
+    def from_buffer(cls, buf: Buffer) -> "DoubleArray":
         length = int.from_bytes(buf.read(2), "big")
-        arr = [float(struct.unpack('d', buf.read(8))[0]) for _ in range(length)]
+        arr = [
+            float(struct.unpack("d", buf.read(8))[0]) for _ in range(length)
+        ]
         return cls(arr)
 
 
 @register
 @dataclass(slots=True)
 class UtfStringArray(Field[list[str]]):
+    """Array of Strings with 16-bit length."""
+
     type_code = TypeCode.UTF_STRING_ARRAY
 
     def to_bytes(self) -> bytearray:
@@ -129,7 +152,7 @@ class UtfStringArray(Field[list[str]]):
         return payload
 
     @classmethod
-    def from_buffer(cls, buf: Buffer):
+    def from_buffer(cls, buf: Buffer) -> "UtfStringArray":
         length = int.from_bytes(buf.read(2), "big")
         arr = [read_small_string(buf) for _ in range(length)]
         return cls(arr)

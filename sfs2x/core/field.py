@@ -1,19 +1,21 @@
 from dataclasses import dataclass
-from typing import TypeVar, Generic, ClassVar
+from typing import ClassVar, Generic, Never, TypeVar
 
 from .buffer import Buffer
 from .registry import Packable
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 @dataclass(slots=True)
 class Field(Packable, Generic[T]):
+    """Represents a object, which can be packed into sfs binary."""
+
     type_code: ClassVar[int]
     value: T
 
     def to_bytes(self) -> bytearray:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     @classmethod
-    def from_buffer(cls, buf: Buffer, /):
-        raise NotImplementedError()
+    def from_buffer(cls, buf: Buffer, /) -> Never:
+        raise NotImplementedError

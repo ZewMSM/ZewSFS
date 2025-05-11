@@ -1,23 +1,26 @@
-from typing import Union
 
 
 class Buffer:
-    __slots__ = ('_mv', '_pos')
+    """Represents a binary buffer with some useful methods."""
 
-    def __init__(self, data: Union[bytes, bytes, memoryview]):
+    __slots__ = ("_mv", "_pos")
+
+    def __init__(self, data: bytes | memoryview) -> None:
         self._mv = memoryview(data)
         self._pos = 0
 
     def read(self, n: int) -> memoryview:
         if self._pos + n > len(self._mv):
-            raise EOFError("Buffer overflow")
+            msg = "Buffer overflow"
+            raise EOFError(msg)
         out = self._mv[self._pos:self._pos + n]
         self._pos += n
         return out
 
     def peek(self, n: int) -> memoryview:
         if self._pos + n > len(self._mv):
-            raise EOFError("Buffer overflow")
+            msg = "Buffer overflow"
+            raise EOFError(msg)
         return self._mv[self._pos:self._pos + n]
 
     def tell(self) -> int:

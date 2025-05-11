@@ -1,0 +1,27 @@
+[tool.ruff]
+line-length = 79
+indent-width = 4
+target-version = "py312"
+extend-exclude = ["tests"]
+
+[tool.ruff.lint]
+ignore = [
+    "D102",   # undocumented-public-method
+    "D103",   # undocumented-public-function
+    "D100",   # undocumented-public-module
+    "D104",   # undocumented-public-package
+    "D106",   # undocumented-public-nested-class
+    "D107",   # undocumented-public-init
+    "D203",   # one-blank-line-before-class
+    "D212",   # multi-line-summary-first-line
+    "COM812", # missing-trailing-comma
+    "RUF001", # ambiguous-unicode-character-string
+]
+select = ["ALL"]
+fixable = ["ALL"]
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-line-length = "dynamic"

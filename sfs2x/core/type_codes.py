@@ -3,6 +3,8 @@ from enum import IntEnum, unique
 
 @unique
 class TypeCode(IntEnum):
+    """Enumeration of all types in SFS2X protocol."""
+
     NULL = 0
     BOOL = 1
     BYTE = 2
