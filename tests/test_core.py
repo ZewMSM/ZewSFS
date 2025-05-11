@@ -23,6 +23,7 @@ from sfs2x.core import (
     UtfStringArray,
     decode,
 )
+from sfs2x.core.exceptions import FieldError
 from sfs2x.core.utils import read_small_string, write_small_string
 
 SAMPLE_TYPES_VALUES = {
@@ -83,8 +84,6 @@ SAMPLE_PACKED_VALUES = {
         ])
     ])
 }
-
-
 
 def test_decode_unknown_type():
     unknown_packet = bytearray([30])
@@ -154,4 +153,7 @@ def test_coding_styles_compatibility():
 
     assert imperative == declarative
 
-
+def test_field_error():
+    object = SFSObject()
+    with pytest.raises(FieldError):
+        object['key'] = 'value'
