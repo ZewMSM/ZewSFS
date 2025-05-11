@@ -1,8 +1,28 @@
 import pytest
 
-from sfs2x.core import (decode, Buffer, Bool, Byte, Short, Int, Long, Float, Double, UtfString,
-                        Text, BoolArray, ByteArray, ShortArray, IntArray, LongArray, FloatArray,
-                        DoubleArray, UtfStringArray, SFSObject, SFSArray)
+from sfs2x.core import (
+    Bool,
+    BoolArray,
+    Buffer,
+    Byte,
+    ByteArray,
+    Double,
+    DoubleArray,
+    Float,
+    FloatArray,
+    Int,
+    IntArray,
+    Long,
+    LongArray,
+    SFSArray,
+    SFSObject,
+    Short,
+    ShortArray,
+    Text,
+    UtfString,
+    UtfStringArray,
+    decode,
+)
 from sfs2x.core.utils import read_small_string, write_small_string
 
 SAMPLE_TYPES_VALUES = {
@@ -30,7 +50,7 @@ SAMPLE_TYPES_VALUES = {
         "object": SFSObject({
             "number": Int(12),
             "array": SFSArray([
-                SFSObject({'str_arr': UtfStringArray(['hi', 'antony'])}),
+                SFSObject({"str_arr": UtfStringArray(["hi", "antony"])}),
                 SFSObject({"test": Double(3.1333)})
             ])
         })
@@ -39,24 +59,25 @@ SAMPLE_TYPES_VALUES = {
         SFSObject({"int": Int(12)}),
         Double(3.14),
         ByteArray([20, -10, 50]),
-        Text('Hello, world!'),
+        Text("Hello, world!"),
         BoolArray([True, False, True]),
     ]
 }
 
 
 SAMPLE_PACKED_VALUES = {
-    b'\x12\x00\x03\x00\x03num\x04\x00\x00\x00\x0c\x00\x03str\x08\x00\x05Hello\x00\x03obj\x12\x00\x01\x00\x05short\x03\xff\xec': SFSObject({
-        'num': Int(12),
-        'str': UtfString('Hello'),
-        'obj': SFSObject({
-            'short': Short(-20)
+    b"\x12\x00\x03\x00\x03num\x04\x00\x00\x00\x0c\x00\x03str\x08\x00\x05Hello\x00\x03obj\x12\x00\x01\x00\x05short\x03\xff\xec": SFSObject({
+        "num": Int(12),
+        "str": UtfString("Hello"),
+        "obj": SFSObject({
+            "short": Short(-20)
         })
     }),
-    b'\x11\x00\x04\x04\x00\x00\x00\r\x10\x00\x02\x00\x02hi\x00\x05world\x12\x00\x01\x00\x05short\x03\xff\xec\x11\x00\x01\t\x00\x02\x00\x01': SFSArray([
+    b"\x11\x00\x04\x04\x00\x00\x00\r\x10\x00\x02\x00\x02hi\x00\x05world"
+    b"\x12\x00\x01\x00\x05short\x03\xff\xec\x11\x00\x01\t\x00\x02\x00\x01": SFSArray([
         Int(13),
-        UtfStringArray(['hi', 'world']),
-        SFSObject({'short': Short(-20)}),
+        UtfStringArray(["hi", "world"]),
+        SFSObject({"short": Short(-20)}),
         SFSArray([
             BoolArray([False, True]),
         ])
@@ -106,27 +127,28 @@ def test_serialization_compatibility(packed: bytes, non_packed: SFSObject):
 
 def test_coding_styles_compatibility():
     imperative = SFSObject()
-    imperative.put_int('number', 12)
-    imperative.put_bool('bool', False)
-    imperative.put_sfs_array("arr", SFSArray().add_short(12).add_int(1000).add_utf_string_array(['hi', 'antony']))
+    imperative.put_int("number", 12)
+    imperative.put_bool("bool", False)
+    imperative.put_sfs_array("arr", SFSArray().add_short(12)
+                             .add_int(1000).add_utf_string_array(["hi", "antony"]))
 
     sub_imperative = SFSObject()
-    sub_imperative['num'] = Short(-20)
-    sub_imperative['double_arr'] = DoubleArray([3.14, 3.14, 3.14])
-    imperative.put('obj', sub_imperative)
+    sub_imperative["num"] = Short(-20)
+    sub_imperative["double_arr"] = DoubleArray([3.14, 3.14, 3.14])
+    imperative.put("obj", sub_imperative)
 
 
     declarative = SFSObject({
-        'number': Int(12),
-        'bool': Bool(False),
-        'arr': SFSArray([
+        "number": Int(12),
+        "bool": Bool(False),
+        "arr": SFSArray([
             Short(12),
             Int(1000),
-            UtfStringArray(['hi', 'antony']),
+            UtfStringArray(["hi", "antony"]),
         ]),
-        'obj': SFSObject({
-            'num': Short(-20),
-            'double_arr': DoubleArray([3.14, 3.14, 3.14]),
+        "obj": SFSObject({
+            "num": Short(-20),
+            "double_arr": DoubleArray([3.14, 3.14, 3.14]),
         })
     })
 
