@@ -1,5 +1,5 @@
 [tool.ruff]
-line-length = 79
+line-length = 142
 indent-width = 4
 target-version = "py312"
 extend-exclude = ["tests"]
