@@ -54,13 +54,30 @@ def test_long_packet():
         SysAction.HANDSHAKE,
         make_payload(blob=big_string),
     )
-    raw = encode(msg)
+    raw = encode(msg, compress_threshold=None)
 
     first_flag = Flag(raw[0])
     assert first_flag & Flag.BINARY
     assert first_flag & Flag.BIG_SIZE
 
     decoded = decode(Buffer(raw))
+    assert decoded.payload.get("blob") == big_string
+
+def test_encrypted_and_compressed_long_packet():
+    big_string = "x" * 70000
+    msg = Message(
+        ControllerID.SYSTEM,
+        SysAction.HANDSHAKE,
+        make_payload(blob=big_string),
+    )
+    raw = encode(msg, compress_threshold=0, encryption_key=b'1234567890123456')
+
+    first_flag = Flag(raw[0])
+    assert first_flag & Flag.BINARY
+    assert first_flag & Flag.ENCRYPTED
+    assert first_flag & Flag.COMPRESSED
+
+    decoded = decode(Buffer(raw), encryption_key=b'1234567890123456')
     assert decoded.payload.get("blob") == big_string
 
 
