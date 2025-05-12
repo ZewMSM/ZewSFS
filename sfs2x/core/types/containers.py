@@ -1,13 +1,12 @@
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any, Never
 
 from sfs2x.core.buffer import Buffer
 from sfs2x.core.field import Field
-from sfs2x.core.registry import _registry, decode, register
+from sfs2x.core.registry import decode, register
 from sfs2x.core.type_codes import TypeCode
 from sfs2x.core.utils import (
-    camel_to_snake,
     read_small_string,
     write_small_string,
 )
@@ -65,6 +64,7 @@ class SFSObject(Field[dict[str, Field]]):
             payload += v.to_bytes()
         return payload
 
+    # noinspection PyTypeChecker
     @classmethod
     def from_buffer(cls, buf: Buffer) -> "SFSObject":
         """Load SFSObject from a buffer."""
@@ -152,6 +152,7 @@ class SFSArray(Field[list[Field]]):
             payload += elem.to_bytes()
         return payload
 
+    # noinspection PyTypeChecker
     @classmethod
     def from_buffer(cls, buf: Buffer) -> "SFSArray":
         """Load SFSArray from buffer."""
@@ -182,30 +183,3 @@ class SFSArray(Field[list[Field]]):
                 yield v.value
             else:
                 yield v
-
-
-for _cls in _registry.values():
-    name = _cls.__name__
-
-
-    def _make_put(tp: Any = _cls) -> Callable:  # noqa: ANN401
-        # noinspection PyTypeChecker,PyArgumentList
-        def _put_x(self: SFSObject, key: str, value: Any) -> SFSObject:  # noqa: ANN401
-            if type(value) not in (SFSObject, SFSArray):
-                return self.put(key, tp(value))
-            return self.put(key, value)
-
-        return _put_x
-
-
-    def _make_add(tp: Any = _cls) -> Callable:  # noqa: ANN401
-        def _add_x(self: SFSArray, value: Any) -> SFSArray:  # noqa: ANN401
-            if type(value) not in (SFSObject, SFSArray):
-                return self.add(tp(value))
-            return self.add(value)
-
-        return _add_x
-
-
-    setattr(SFSObject, f"put_{camel_to_snake(name)}", _make_put())
-    setattr(SFSArray, f"add_{camel_to_snake(name)}", _make_add())
