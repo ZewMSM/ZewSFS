@@ -1,0 +1,85 @@
+from enum import IntEnum, IntFlag, unique
+
+
+@unique
+class Flag(IntFlag):
+    """Bits for packet-header."""
+
+    BINARY = 0x80
+    BLUEBOX = 0x10
+    COMPRESSED = 0x20
+    ENCRYPTED = 0x40
+    BIG_SIZE = 0x08
+
+
+@unique
+class ControllerID(IntEnum):
+    """IDs of internal controllers in SFS proto."""
+
+    SYSTEM = 0
+    EXTENSION = 1
+    SECURITY = 2  # UPD, Encryption
+    BUDDY = 3
+    ROOM_MANAGER = 4
+    ADMIN = 5  # Admin Tool, Console
+
+
+@unique
+class SysAction(IntEnum):
+    """System action types for SFS protocol."""
+
+    HANDSHAKE = 0
+    LOGIN = 1
+    LOGOUT = 2
+    GET_ROOM_LIST = 3
+    JOIN_ROOM = 4
+    AUTO_JOIN = 5
+    CREATE_ROOM = 6
+    GENERIC_MESSAGE = 7
+    CHANGE_ROOM_NAME = 8
+    CHANGE_ROOM_PASSWORD = 9
+    OBJECT_MESSAGE = 10
+    SET_ROOM_VARIABLES = 11
+    SET_USER_VARIABLES = 12
+    CALL_EXTENSION = 13
+    LEAVE_ROOM = 14
+    SUBSCRIBE_ROOM_GROUP = 15
+    UNSUBSCRIBE_ROOM_GROUP = 16
+    SPECTATOR_TO_PLAYER = 17
+    PLAYER_TO_SPECTATOR = 18
+    CHANGE_ROOM_CAPACITY = 19
+    PUBLIC_MESSAGE = 20
+    PRIVATE_MESSAGE = 21
+    MODERATOR_MESSAGE = 22
+    ADMIN_MESSAGE = 23
+    KICK_USER = 24
+    BAN_USER = 25
+    MANUAL_DISCONNECTION = 26
+    FIND_ROOMS = 27
+    FIND_USERS = 28
+    PING_PONG = 29
+    SET_USER_POSITION = 30
+    QUICK_JOIN_OR_CREATE_ROOM = 31
+    INIT_BUDDY_LIST = 200
+    ADD_BUDDY = 201
+    BLOCK_BUDDY = 202
+    REMOVE_BUDDY = 203
+    SET_BUDDY_VARIABLES = 204
+    GO_ONLINE = 205
+    INVITE_USER = 300
+    INVITATION_REPLY = 301
+    CREATE_SFS_GAME = 302
+    QUICK_JOIN_GAME = 303
+    JOIN_ROOM_INVITE = 304
+    CLUSTER_JOIN_OR_CREATE = 500
+    CLUSTER_INVITE_USERS = 502
+    GAME_SERVER_CONNECTION_REQUIRED = 600
+    USER_ENTER_ROOM = 1000
+    USER_COUNT_CHANGE = 1001
+    USER_LOST = 1002
+    ROOM_LOST = 1003
+    USER_EXIT_ROOM = 1004
+    CLIENT_DISCONNECT = 1005
+    RECONNECTION_FAILURE = 1006
+    SET_MMO_ITEM_VARIABLE = 1007
+    LOAD_BALANCER_ERROR = 1600
