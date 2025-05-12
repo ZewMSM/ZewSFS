@@ -45,7 +45,7 @@ def _parse_header(buf: Buffer) -> tuple[int, Flag]:
 def encode(msg: Message, compress_threshold: int | None = 1024, encryption_key: bytes | None = None) -> bytearray:
     """Encode message to bytearray, TCP-Ready."""
     flags = Flag.BINARY
-    payload = msg.to_sfs_object().to_bytes()
+    payload: bytes = msg.to_sfs_object().to_bytes()
 
     if compress_threshold is not None and len(payload) > compress_threshold:
         payload = zlib.compress(payload)
@@ -69,8 +69,7 @@ def decode(buf: Buffer, *, encryption_key: bytes | None = None) -> Message: ...
 
 
 @overload
-def decode(raw: (bytes, bytearray, memoryview), *, encryption_key: bytes | None = None) -> Message: ...
-
+def decode(raw: bytes | bytearray | memoryview, *, encryption_key: bytes | None = None) -> Message: ...
 
 # noinspection PyTypeChecker
 def decode(data, *, encryption_key: bytes | None = None) -> Message:
