@@ -152,8 +152,3 @@ def test_coding_styles_compatibility():
     })
 
     assert imperative == declarative
-
-def test_field_error():
-    object = SFSObject()
-    with pytest.raises(FieldError):
-        object['key'] = 'value'

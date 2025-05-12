@@ -1,7 +1,7 @@
-from sfs2x.protocol.codec import decode, encode
-from sfs2x.protocol.constants import ControllerID, Flag, SysAction
+from sfs2x.protocol.constants import ControllerID, Flag, SysAction  # noqa: I001
 from sfs2x.protocol.exceptions import ProtocolError, UnsupportedFlagError
 from sfs2x.protocol.message import Message
+from sfs2x.protocol.codec import decode, encode
 
 __all__ = [
     "ControllerID",

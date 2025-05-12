@@ -59,7 +59,7 @@ def decode(data):
 
     length, flags = _parse_header(buf)
     payload_bytes = buf.read(length)
-    root: SFSObject = core_decode(buf)
+    root: SFSObject = core_decode(Buffer(payload_bytes))
 
     controller = root.get("c", 0)
     action = root.get("a", 0)
