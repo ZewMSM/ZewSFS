@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import ClassVar, Generic, Never, TypeVar
+from typing import ClassVar, Generic, TypeVar
 
 from .buffer import Buffer
 from .registry import Packable
@@ -17,5 +17,5 @@ class Field(Packable, Generic[T]):
         raise NotImplementedError
 
     @classmethod
-    def from_buffer(cls, buf: Buffer, /) -> Never:
+    def from_buffer(cls, buf: Buffer, /) -> "Field":
         raise NotImplementedError
