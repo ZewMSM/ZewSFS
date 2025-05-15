@@ -4,7 +4,6 @@ from typing import Protocol
 
 from sfs2x.core import Buffer
 from sfs2x.protocol import Message, decode, encode
-from sfs2x.transport.exceptions import ConnectionClosed
 
 
 class Transport(ABC):
@@ -22,12 +21,14 @@ class Transport(ABC):
 
     async def send(self, msg: Message) -> None:
         if self._closed:
-            raise ConnectionClosed
+            err_msg = "Connection closed by remote host"
+            raise ConnectionError(err_msg)
         await self._send_raw(encode(msg))
 
     async def recv(self) -> Message:
         if self._closed:
-            raise ConnectionClosed
+            msg = "Connection closed by remote host"
+            raise ConnectionError(msg)
         raw = await self._recv_raw()
         return decode(Buffer(raw))
 
@@ -50,6 +51,14 @@ class Transport(ABC):
 
     @abstractmethod
     async def _close_impl(self) -> None:
+        ...
+
+    @abstractmethod
+    def host(self) -> str:
+        ...
+
+    @abstractmethod
+    def port(self) -> int:
         ...
 
 

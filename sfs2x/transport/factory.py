@@ -20,7 +20,7 @@ def client_from_url(url: str) -> Transport:
     raise NotImplementedError
 
 
-def server_from_url(url: str) -> Acceptor:
+def server_from_url(url: str) -> TCPAcceptor | Acceptor:
     """
     Create acceptor from url.
 
