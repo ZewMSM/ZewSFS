@@ -12,8 +12,8 @@ logger = logging.getLogger("SFS2X/TCPTransport")
 class TCPTransport(Transport):
     """SmartFox Transport realisation with Async Streams."""
 
-    def __init__(self, host: str, port: int) -> None:
-        super().__init__()
+    def __init__(self, host: str, port: int, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
+        super().__init__(compress_threshold=compress_threshold, encryption_key=encryption_key)
         self._host = host
         self._port = port
         self._reader: StreamReader | None = None
@@ -62,7 +62,6 @@ class TCPTransport(Transport):
             msg = "Connection closed by remote host"
             raise ConnectionError(msg) from e
 
-
         logger.info("Received %s bytes from %s:%s", length, self._host, self._port)
 
         return _flags + len_bytes + body
@@ -77,11 +76,13 @@ class TCPTransport(Transport):
 class TCPAcceptor(Acceptor):
     """Server-Side implementation of the TCP Acceptor."""
 
-    def __init__(self, host: str, port: int) -> None:
+    def __init__(self, host: str, port: int, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
         super().__init__()
         self._host = host
         self._port = port
         self._server: AbstractServer | None = None
+        self._compress_threshold = compress_threshold
+        self._encryption_key = encryption_key
 
     async def __aiter__(self) -> AsyncIterator[Transport]:  # type: ignore  # noqa: PGH003
         """Iterate all new connections."""
@@ -106,7 +107,7 @@ class TCPAcceptor(Acceptor):
     async def _on_conn(self, reader: StreamReader, writer: StreamWriter) -> None:
         host, port = writer.get_extra_info("peername")
         logger.info("Connection from %s:%s", host, port)
-        transport = TCPTransport(host, port)
+        transport = TCPTransport(host, port, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key)
         transport._reader = reader  # noqa: SLF001
         transport._writer = writer  # noqa: SLF001
         transport._closed = False  # noqa: SLF001
