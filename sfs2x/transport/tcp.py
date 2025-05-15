@@ -13,11 +13,13 @@ class TCPTransport(Transport):
     """SmartFox Transport realisation with Async Streams."""
 
     def __init__(self, host: str, port: int, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
-        super().__init__(compress_threshold=compress_threshold, encryption_key=encryption_key)
+        super().__init__()
         self._host = host
         self._port = port
         self._reader: StreamReader | None = None
         self._writer: StreamWriter | None = None
+        self._encryption_key = encryption_key
+        self._compress_threshold = compress_threshold
 
     @property
     def host(self) -> str:
@@ -107,8 +109,10 @@ class TCPAcceptor(Acceptor):
     async def _on_conn(self, reader: StreamReader, writer: StreamWriter) -> None:
         host, port = writer.get_extra_info("peername")
         logger.info("Connection from %s:%s", host, port)
-        transport = TCPTransport(host, port, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key)
+        transport = TCPTransport(host, port)
         transport._reader = reader  # noqa: SLF001
         transport._writer = writer  # noqa: SLF001
         transport._closed = False  # noqa: SLF001
+        transport._encryption_key = self._encryption_key  # noqa: SLF001
+        transport._compress_threshold = self._compress_threshold  # noqa: SLF001
         await self._queue.put(transport)

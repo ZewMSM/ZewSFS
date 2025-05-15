@@ -87,7 +87,11 @@ def decode(data, *, encryption_key: bytes | None = None) -> Message:
             msg = "Library pycryptodome is not installed. Install it before using encryption (pip install pycryptodome)."
             raise ImportError(msg)
         cipher = AESCipher(encryption_key)
-        payload_bytes = cipher.decrypt(payload_bytes)
+        try:
+            payload_bytes = cipher.decrypt(payload_bytes)
+        except ValueError as e:
+            msg = "Encryption error occurred."
+            raise ProtocolError(msg) from e
 
     if flags & Flag.COMPRESSED:
         payload_bytes = zlib.decompress(payload_bytes)

@@ -26,6 +26,7 @@ async def some_handler(conn: TCPTransport):
     try:
         while True:
             msg = await conn.recv()
+            print(msg)
             obj = msg.payload.value.get('input')
             obj.value *= 2
             msg.payload['resp'] = obj

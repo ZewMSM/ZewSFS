@@ -10,10 +10,10 @@ class Transport(ABC):
     """Abstract base class for transports."""
 
     _closed: bool
+    _compress_threshold: int | None = None
+    _encryption_key: bytes | None = None
 
-    def __init__(self, *, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
-        self.compress_threshold = compress_threshold
-        self.encryption_key = encryption_key
+    def __init__(self) -> None:
         self._closed = True
 
     async def open(self) -> "Transport":
@@ -25,14 +25,14 @@ class Transport(ABC):
         if self._closed:
             err_msg = "Connection closed by remote host"
             raise ConnectionError(err_msg)
-        await self._send_raw(encode(msg))
+        await self._send_raw(encode(msg, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key))
 
     async def recv(self) -> Message:
         if self._closed:
             msg = "Connection closed by remote host"
             raise ConnectionError(msg)
         raw = await self._recv_raw()
-        return decode(Buffer(raw), encryption_key=self.encryption_key)
+        return decode(Buffer(raw), encryption_key=self._encryption_key)
 
     async def close(self) -> None:
         if not self._closed:
