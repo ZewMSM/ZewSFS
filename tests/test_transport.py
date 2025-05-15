@@ -23,16 +23,12 @@ async def run_echo_server():
         asyncio.create_task(some_handler(conn))
 
 async def some_handler(conn: TCPTransport):
-    try:
-        while True:
-            msg = await conn.recv()
-            print(msg)
-            obj = msg.payload.value.get('input')
-            obj.value *= 2
-            msg.payload['resp'] = obj
-            await conn.send(msg)
-    except ConnectionError:
-        await conn.close()
+    async for msg in conn.listen():
+        print(msg)
+        obj = msg.payload.value.get('input')
+        obj.value *= 2
+        msg.payload['resp'] = obj
+        await conn.send(msg)
 
 @pytest.mark.asyncio
 async def test_tcp_echo_roundtrip(echo_server):

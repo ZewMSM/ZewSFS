@@ -25,7 +25,8 @@ class Transport(ABC):
         if self._closed:
             err_msg = "Connection closed by remote host"
             raise ConnectionError(err_msg)
-        await self._send_raw(encode(msg, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key))
+        await self._send_raw(
+            encode(msg, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key))
 
     async def recv(self) -> Message:
         if self._closed:
@@ -38,6 +39,14 @@ class Transport(ABC):
         if not self._closed:
             await self._close_impl()
             self._closed = True
+
+    async def listen(self) -> AsyncIterator[Message]:
+        """Async iterator over incoming messages."""
+        while not self._closed:
+            try:
+                yield await self.recv()
+            except (ConnectionError, RuntimeError):
+                break
 
     @abstractmethod
     async def _open(self) -> None:
