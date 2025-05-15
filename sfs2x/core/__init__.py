@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 
-def patch_containers() -> None:
+def patch_containers() -> None:  # noqa: C901
     from collections.abc import Callable
     from typing import Any
 
@@ -67,6 +67,10 @@ def patch_containers() -> None:
             def _put_x(self: SFSObject, key: str, value: Any) -> SFSObject:  # noqa: ANN401
                 if type(value) not in (SFSObject, SFSArray):
                     return self.put(key, tp(value))
+                if type(value) is list:
+                    return self.put(key, SFSArray(value))
+                if type(value) is dict:
+                    return self.put(key, SFSObject(value))
                 return self.put(key, value)
 
             return _put_x
@@ -75,11 +79,16 @@ def patch_containers() -> None:
             def _add_x(self: SFSArray, value: Any) -> SFSArray:  # noqa: ANN401
                 if type(value) not in (SFSObject, SFSArray):
                     return self.add(tp(value))
+                if type(value) is list:
+                    return self.add(SFSArray(value))
+                if type(value) is dict:
+                    return self.add(SFSObject(value))
                 return self.add(value)
 
             return _add_x
 
         setattr(SFSObject, f"put_{camel_to_snake(name)}", _make_put())
         setattr(SFSArray, f"add_{camel_to_snake(name)}", _make_add())
+
 
 patch_containers()

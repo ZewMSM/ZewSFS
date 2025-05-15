@@ -1,5 +1,3 @@
-from sfs2x.transport import TCPTransport
-
 # ZewSFS
 
 **ZewSFS** is a Python-based implementation of the [SmartFoxServer 2X (SFS2X)](https://www.smartfoxserver.com/)
@@ -9,55 +7,48 @@ compression.
 
 ## Table of Contents
 
-* [Features](#features)
-* [Installation](#installation)
+- [Features](#features)
+- [Installation](#installation)
 
-* [Quick Start](#quick-start)
-    * [Client Example](#client-example)
-    * [Server Example](#server-example)
+- [Quick Start](#quick-start)
+    - [Client Example](#client-example)
+    - [Server Example](#server-example)
 
-* [Modules Overview](#modules-overview)
-    * [Core](#core)
-    * [Protocol](#protocol)
-    * [Transport](#transport)
+- [Modules Overview](#modules-overview)
+    - [Core](#core)
+    - [Protocol](#protocol)
+    - [Transport](#transport)
 
-* [Usage Examples](#usage-examples)
-    * [Working with `SFSObject` and `SFSArray`](#working-with-sfsobject-and-sfsarray)
-    * [Serialization / Deserialization](#serialization--deserialization)
-    * [Encrypted or Compressed Packets](#encrypted-or-compressed-packets)
+- [Usage Examples](#usage-examples)
+    - [Working with `SFSObject` and `SFSArray`](#working-with-sfsobject-and-sfsarray)
+    - [Serialization / Deserialization](#serialization--deserialization)
+    - [Encrypted or Compressed Packets](#encrypted-or-compressed-packets)
 
-* [Development Status](#development-status)
-* [Contributing](#contributing)
-* [License](#license)
+- [Development Status](#development-status)
+- [Contributing](#contributing)
+- [License](#license)
 
 ---
 
 ## Features
 
-* **Core**: Rich, low-level data structures (e.g., `SFSObject`, `SFSArray`) mirroring SmartFoxServer object models.
-* **Protocol**: Easy-to-use encoding/decoding functions to convert between raw bytes and high-level `Message` objects.
-* **Transport**: Ready-made TCP server (via `TCPAcceptor`) and client (`TCPTransport`) for sending and receiving SFS2X
+- **Core**: Rich, low-level data structures (e.g., `SFSObject`, `SFSArray`) mirroring SmartFoxServer object models.
+- **Protocol**: Easy-to-use encoding/decoding functions to convert between raw bytes and high-level `Message` objects.
+- **Transport**: Ready-made TCP server (via `TCPAcceptor`) and client (`TCPTransport`) for sending and receiving SFS2X
   messages.
-* **Encryption**: Optional AES-128-CBC support via [PyCryptodome](https://pypi.org/project/pycryptodome/).
+- **Encryption**: Optional AES-128-CBC support via [PyCryptodome](https://pypi.org/project/pycryptodome/).
 
 ---
 
 ## Installation
 
-1. **Clone the Repository**
+Install module with **pip** or **uv**
 
    ```bash
-   git clone https://github.com/ZewMSM/ZewSFS.git
-   cd ZewSFS
-   ```
-2. **Install Dependencies**
-
-   ```bash
-   pip install -r requirements.txt
+   uv pip install sfs2x
    ```
 
-   Make sure you have **Python 3.9+**.
-   If you plan to use **encrypted packets**, install PyCryptodome:
+If you plan to use **encrypted packets**, install PyCryptodome:
 
    ```bash
    pip install pycryptodome
@@ -67,11 +58,10 @@ compression.
 
 ## Quick Start
 
-> **Note**: These examples describe the server-client for the low-Level transport module.  High-level server and client modules are currently under development.
+> **Note**: These examples describe the server-client for the low-Level transport module. High-level server and client
+> modules are currently under development.
 
 ### Transport Client Example
-
-
 
 ```python
 import asyncio
@@ -84,13 +74,13 @@ async def run_client():
     async with client_from_url("tcp://localhost:9933") as client:
         payload = SFSObject()
         payload.put_utf_string("message", "Hello from ZewSFS client!")
-        
+
         await client.send(Message(
             controller=ControllerID.SYSTEM,
             action=SysAction.PUBLIC_MESSAGE,
             payload=payload
         ))
-    
+
         response = await client.recv()
         print("Response:", response)
 
@@ -110,12 +100,11 @@ from sfs2x.core import SFSObject
 
 async def handle_client(client: TCPTransport):
     async for message in client.listen():
-        response_payload = SFSObject()
-        response_payload.put_utf_string("message", "Hello back from server!")
-    
+        response_payload = SFSObject(message="Hello back from server!")
+        
         await client.send(Message(
-            controller=ControllerID.SYSTEM, 
-            action=SysAction.PUBLIC_MESSAGE, 
+            controller=ControllerID.SYSTEM,
+            action=SysAction.PUBLIC_MESSAGE,
             payload=response_payload
         ))
 
@@ -139,35 +128,35 @@ if __name__ == "__main__":
 The `core` package provides fundamental data structures and serialization logic:
 
 1. **Fields and Arrays**:
-    * `Bool`, `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`, `UtfString`, `Text`
-    * `BoolArray`, `ByteArray`, `ShortArray`, `IntArray`, `LongArray`, `FloatArray`, `DoubleArray`, `UtfStringArray`
-   
+    - `Bool`, `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`, `UtfString`, `Text`
+    - `BoolArray`, `ByteArray`, `ShortArray`, `IntArray`, `LongArray`, `FloatArray`, `DoubleArray`, `UtfStringArray`
+
 2. **Containers**:
-    * `SFSObject` for key-value pairs
-    * `SFSArray` for sequential lists
-   
+    - `SFSObject` for key-value pairs
+    - `SFSArray` for sequential lists
+
 3. **Utility Classes**:
-    * `Buffer` for reading raw bytes
-    * `Field` as a base for packable items
-    * `registry`, `decode`, and `encode` for bridging raw bytes ↔ SFS data types
+    - `Buffer` for reading raw bytes
+    - `Field` as a base for packable items
+    - `registry`, `decode`, and `encode` for bridging raw bytes ↔ SFS data types
 
 ### Protocol
 
 The `protocol` package focuses on reading/writing SFS2X-compliant packets:
 
-* **`Message`**: High-level class representing a single SFS2X message with `controller`, `action`, and `payload`.
-* **`Flag`**: Enum for packet flags (binary, compressed, encrypted, etc.).
-* **`encode` / `decode`**: Convert `Message` ↔ binary packets, optionally using compression and AES encryption.
-* **`AESCipher`**: AES-128-CBC encryption/decryption for securing packets (requires PyCryptodome).
+- **`Message`**: High-level class representing a single SFS2X message with `controller`, `action`, and `payload`.
+- **`Flag`**: Enum for packet flags (binary, compressed, encrypted, etc.).
+- **`encode` / `decode`**: Convert `Message` ↔ binary packets, optionally using compression and AES encryption.
+- **`AESCipher`**: AES-128-CBC encryption/decryption for securing packets (requires PyCryptodome).
 
 ### Transport
 
 The `transport` package provides abstractions for client-server communication:
 
-* **`Transport` (abstract)**: Defines the required methods (`open`, `send`, `recv`, `close`) for any transport.
-* **`TCPTransport`**: Client-side implementation using asyncio streams (TCP).
-* **`TCPAcceptor`**: Server-side implementation using asyncio `start_server` (TCP).
-* **`client_from_url` / `server_from_url`**: Factory methods to instantiate a transport from a URL (e.g.,
+- **`Transport` (abstract)**: Defines the required methods (`open`, `send`, `recv`, `close`) for any transport.
+- **`TCPTransport`**: Client-side implementation using asyncio streams (TCP).
+- **`TCPAcceptor`**: Server-side implementation using asyncio `start_server` (TCP).
+- **`client_from_url` / `server_from_url`**: Factory methods to instantiate a transport from a URL (e.g.,
   `tcp://localhost:9933`).
 
 ---
@@ -201,12 +190,26 @@ from sfs2x.core import UtfString, Int, SFSObject, SFSArray
 obj = SFSObject({
     "name": UtfString("Zewsic"),
     "score": Int(2022),
-    "items": SFSArray([
+    "items": [
         UtfString("Sword"),
         UtfString("Shield"),
         SFSObject({"key": UtfString("value")})
-    ])
+    ], # SFSArray
+    "object": {
+        "some": UtfString("Thing")
+    } # SFSObject
 })
+```
+
+**Argument style**:
+> **Note**: Added as experiment, unstable.
+```python
+from sfs2x.core import UtfString, Int, SFSObject, SFSArray
+
+obj = SFSObject(
+    username=UtfString("Zewsic"),
+    coins=Int(1200)
+)
 ```
 
 ### Serialization / Deserialization
@@ -234,7 +237,7 @@ from sfs2x.core import SFSObject, UtfString
 encryption_key = b"my_secret_16byte"
 
 # Compress if payload > 512 bytes, encrypt with a 16-byte key
-msg = Message(controller=ControllerID.EXTENSION, action=18, payload=SFSObject({"secret": UtfString("HideMe")}))
+msg = Message(controller=ControllerID.EXTENSION, action=18, payload={"secret": UtfString("HideMe")})
 packet = encode(msg, compress_threshold=512, encryption_key=encryption_key)
 
 # Decoding

@@ -1,6 +1,6 @@
 import pytest
 
-from sfs2x.core import UtfStringArray, Int
+from sfs2x.core import UtfStringArray, Int, Text
 from sfs2x.core.buffer import Buffer
 from sfs2x.core.types.containers import SFSObject
 from sfs2x.protocol import (
@@ -15,10 +15,7 @@ from sfs2x.protocol import (
 
 def make_payload(**fields):
     """Make simple SFSObject from key-value pairs."""
-    obj = SFSObject()
-    for k, v in fields.items():
-        obj.put_text(k, v)
-    return obj
+    return SFSObject({k: Text(v) for k, v in fields.items()})
 
 
 @pytest.mark.parametrize(
@@ -63,6 +60,7 @@ def test_long_packet():
     decoded = decode(Buffer(raw))
     assert decoded.payload.get("blob") == big_string
 
+
 def test_encrypted_and_compressed_long_packet():
     big_string = "x" * 70000
     msg = Message(
@@ -85,10 +83,10 @@ def test_unpack_binary_packet():
     binary_message = b'\x80\x00T\x12\x00\x03\x00\x01c\x02\x01\x00\x01a\x03\x00\x0c\x00\x01p\x12\x00\x03\x00\x01c\x08\x00\x0ctest_command\x00\x01r\x04\xff\xff\xff\xff\x00\x01p\x12\x00\x02\x00\x03num\x04\xff\xff\xff\xff\x00\x07strings\x10\x00\x02\x00\x02hi\x00\x04mega'
     decoded = decode(binary_message)
 
-    re_encoded = Message.extension("test_command", SFSObject({
+    re_encoded = Message.extension("test_command", {
         "num": Int(-1),
         "strings": UtfStringArray(['hi', 'mega'])
-    }))
+    })
 
     assert decoded.controller == ControllerID.EXTENSION
     assert decoded.action == 12

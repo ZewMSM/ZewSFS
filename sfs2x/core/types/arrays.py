@@ -13,6 +13,15 @@ class _NumericArrayMixin(Field[list[int]]):
     _elem_size: ClassVar[int]
     type_code: ClassVar[int]
 
+    def __init__(self, *args: tuple[list[bool]] | list[bool]) -> None:
+        """Initialize a _NumericArrayMixin."""
+        if len(args) == 0:
+            self.value = []
+        elif type(args[0]) is int:
+            self.value = list(args)
+        else:
+            self.value = args[0]
+
     def to_bytes(self) -> bytearray:
         payload = bytearray()
         payload.append(self.type_code)
@@ -30,12 +39,22 @@ class _NumericArrayMixin(Field[list[int]]):
         ]
         return cls(arr)
 
+
 @register
 @dataclass(slots=True)
 class BoolArray(Field[list[bool]]):
     """Array with 1-bit numbers (or booleans)."""
 
     type_code = TypeCode.BOOL_ARRAY
+
+    def __init__(self, *args: tuple[list[bool]] | list[bool]) -> None:
+        """Initialize a BoolArray."""
+        if len(args) == 0:
+            self.value = []
+        elif type(args[0]) is bool:
+            self.value = list(args)
+        else:
+            self.value = args[0]
 
     def to_bytes(self) -> bytearray:
         payload = bytearray()
@@ -95,6 +114,15 @@ class FloatArray(Field[list[float]]):
 
     type_code = TypeCode.FLOAT_ARRAY
 
+    def __init__(self, *args: tuple[list[bool]] | list[bool]) -> None:
+        """Initialize a FloatArray."""
+        if len(args) == 0:
+            self.value = []
+        elif type(args[0]) is float:
+            self.value = list(args)
+        else:
+            self.value = args[0]
+
     def to_bytes(self) -> bytearray:
         payload = bytearray()
         payload.append(self.type_code)
@@ -119,6 +147,15 @@ class DoubleArray(Field[list[float]]):
 
     type_code = TypeCode.DOUBLE_ARRAY
 
+    def __init__(self, *args: tuple[list[bool]] | list[bool]) -> None:
+        """Initialize a DoubleArray."""
+        if len(args) == 0:
+            self.value = []
+        elif type(args[0]) is float:
+            self.value = list(args)
+        else:
+            self.value = args[0]
+
     def to_bytes(self) -> bytearray:
         payload = bytearray()
         payload.append(self.type_code)
@@ -142,6 +179,15 @@ class UtfStringArray(Field[list[str]]):
     """Array of Strings with 16-bit length."""
 
     type_code = TypeCode.UTF_STRING_ARRAY
+
+    def __init__(self, *args: tuple[list[str]] | list[str]) -> None:
+        """Initialize a UtfStringArray."""
+        if len(args) == 0:
+            self.value = []
+        elif type(args[0]) is str:
+            self.value = list(args)
+        else:
+            self.value = args[0]
 
     def to_bytes(self) -> bytearray:
         payload = bytearray()

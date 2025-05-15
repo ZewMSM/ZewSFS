@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, Never
+from typing import Any, Never, Union
 
 from sfs2x.core.buffer import Buffer
 from sfs2x.core.field import Field
@@ -50,10 +50,22 @@ class SFSObject(Field[dict[str, Field]]):
 
     value: dict[str, Field]
 
-    def __init__(self, value: dict[str, Field] | None = None) -> None:
+    def __init__(self, value: dict[str, Field] | None = None, **kwargs: Field) -> None:
         if value is None:
             value = {}
-        self.value = value
+        new_value: dict[str, Field] = {}
+
+        value |= kwargs
+
+        for _key, _value in value.items():
+            if type(_value) is dict:
+                new_value[_key] = SFSObject(_value)
+            elif type(_value) is list:
+                new_value[_key] = SFSArray(_value)
+            else:
+                new_value[_key] = _value
+
+        self.value = new_value
 
     def to_bytes(self) -> bytearray:
         payload = bytearray()
@@ -85,7 +97,12 @@ class SFSObject(Field[dict[str, Field]]):
 
     def put(self, item: str, value: Field) -> "SFSObject":
         """Add or update a key-value pair in the SFSObject."""
-        self.value[item] = value
+        if type(value) is dict:
+            self.value[item] = SFSObject(value)
+        elif type(value) is list:
+            self.value[item] = SFSArray(value)
+        else:
+            self.value[item] = value
         return self
 
     def __getitem__(self, item: str) -> Any:  # noqa: ANN401
@@ -94,7 +111,12 @@ class SFSObject(Field[dict[str, Field]]):
 
     def __setitem__(self, key: str, value: Any) -> None:  # noqa: ANN401
         """Set a value in the SFSObject using dictionary-style access."""
-        self.value[key] = value
+        if type(value) is dict:
+            self.value[key] = SFSObject(value)
+        elif type(value) is list:
+            self.value[key] = SFSArray(value)
+        else:
+            self.value[key] = value
 
     def __contains__(self, key: str) -> bool:
         """Check if a key exists in the SFSObject."""
@@ -117,6 +139,16 @@ class SFSObject(Field[dict[str, Field]]):
             else:
                 yield k, v.value
 
+    def __add__(self, other: Union["SFSObject", dict[str, Field]]) -> "SFSObject":
+        """Concat 2 SFSArray."""
+        return SFSObject(self.value | (other.value if type(other) is SFSObject else other))
+
+    def __or__(self, other: Union["SFSObject", dict[str, Field]]) -> "SFSObject":
+        """Concat 2 SFSObjects."""
+        return self.__add__(other)
+
+    def update(self, **kwargs: Field) -> "SFSObject":
+        return self.__add__(kwargs)
 
 
 @register
@@ -139,10 +171,22 @@ class SFSArray(Field[list[Field]]):
 
     value: list[Field]
 
-    def __init__(self, value: list[Field] | None = None) -> None:
+    def __init__(self, value: list[Field] | None = None, *args: Field) -> None:
         if value is None:
             value = []
-        self.value = value
+        new_value: list[Field] = []
+
+        value.extend(args)
+
+        for _value in value:
+            if type(_value) is dict:
+                new_value.append(SFSObject(_value))
+            elif type(_value) is list:
+                new_value.append(SFSArray(_value))
+            else:
+                new_value.append(_value)
+
+        self.value = new_value
 
     def to_bytes(self) -> bytearray:
         payload = bytearray()
@@ -169,7 +213,12 @@ class SFSArray(Field[list[Field]]):
 
     def add(self, value: Field) -> "SFSArray":
         """Add field to SFSArray."""
-        self.value.append(value)
+        if type(value) is dict:
+            self.value.append(SFSObject(value))
+        elif type(value) is list:
+            self.value.append(SFSArray(value))
+        else:
+            self.value.append(value)
         return self
 
     def __getitem__(self, index: int) -> Any:  # noqa: ANN401
@@ -183,3 +232,15 @@ class SFSArray(Field[list[Field]]):
                 yield v.value
             else:
                 yield v
+
+    def __add__(self, other: Union["SFSArray", list[Field]]) -> "SFSArray":
+        """Concat 2 SFSArray."""
+        return SFSArray(self.value + (other.value if type(other) is SFSArray else other))
+
+    def __or__(self, other: Union["SFSArray", list[Field]]) -> "SFSArray":
+        """Concat 2 SFSArray."""
+        return self.__add__(other)
+
+    def update(self, *kwargs: Field) -> "SFSArray":
+        """Update SFSArray."""
+        return self.__add__(kwargs)

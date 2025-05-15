@@ -53,7 +53,7 @@ class Transport(ABC):
         await self.open()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:  # noqa: ANN001
         """Async exit."""
         await self.close()
 

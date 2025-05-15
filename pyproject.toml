@@ -1,8 +1,30 @@
+
+##################################################
+# PyPi Config
+##################################################
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sfs2x"
+version = "0.1.0.1"
+description = "Python-Based implementation of SmartFoxServer2X (SFS2X) Protocol."
+authors = [{name="Zewsic", email="me@zewsic.pro"}]
+readme = "readme.md"
+license = {text = "MIT"}
+dependencies = []
+
+##################################################
+# Ruff Config
+##################################################
+
 [tool.ruff]
 line-length = 142
 indent-width = 4
 target-version = "py312"
-extend-exclude = ["tests"]
+extend-exclude = ["tests", "handle-all.py"]
 
 [tool.ruff.lint]
 ignore = [

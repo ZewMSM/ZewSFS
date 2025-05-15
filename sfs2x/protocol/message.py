@@ -12,6 +12,13 @@ class Message:
     action: int
     payload: SFSObject
 
+    def __init__(self, controller: int, action: int, payload: SFSObject | dict) -> None:
+        """Initialize message."""
+        self.controller = controller
+        self.action = action
+        self.payload = payload if type(payload) is SFSObject else SFSObject(payload)
+
+
     def to_sfs_object(self) -> SFSObject:
         """Pack message to SFS-Object."""
         return SFSObject({
@@ -21,7 +28,7 @@ class Message:
         })
 
     @classmethod
-    def extension(cls, cmd: str, params: SFSObject, *, request_id: int = -1) -> "Message":
+    def extension(cls, cmd: str, params: SFSObject | dict, *, request_id: int = -1) -> "Message":
         ext = SFSObject({
             "c": UtfString(cmd),
             "r": Int(request_id),
@@ -37,5 +44,5 @@ class Message:
         aname = SysAction(self.action).name \
             if cname == ControllerID.SYSTEM.name and self.action in SysAction \
             else self.action
-        return (f"f<Message {cname}/{aname} "
+        return (f"<Message {cname}/{aname} "
                 f"payload={self.payload!r}>")
