@@ -48,6 +48,15 @@ class Transport(ABC):
             except (ConnectionError, RuntimeError):
                 break
 
+    async def __aenter__(self) -> "Transport":
+        """Async enter."""
+        await self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async exit."""
+        await self.close()
+
     @abstractmethod
     async def _open(self) -> None:
         ...

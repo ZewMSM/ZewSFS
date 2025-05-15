@@ -1,9 +1,8 @@
 import zlib
 from typing import overload
 
-from sfs2x.core import Buffer
+from sfs2x.core import Buffer, SFSObject
 from sfs2x.core import decode as core_decode
-from sfs2x.core.types.containers import SFSObject
 from sfs2x.protocol import AESCipher, Flag, Message, ProtocolError, UnsupportedFlagError
 
 _SHORT_MAX = 0xFFFF
