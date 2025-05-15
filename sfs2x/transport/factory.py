@@ -12,7 +12,7 @@ def client_from_url(url: str) -> Transport:
     * ``http://host:port/path
     """
     u = urlparse(url)
-    scheme = u.scheme.lower()
+    scheme = (u.scheme or "tcp").lower()
 
     if scheme == "tcp":
         port = u.port or 9933
