@@ -1,9 +1,8 @@
 import zlib
 from typing import overload
 
-from sfs2x.core import Buffer
+from sfs2x.core import Buffer, SFSObject
 from sfs2x.core import decode as core_decode
-from sfs2x.core.types.containers import SFSObject
 from sfs2x.protocol import AESCipher, Flag, Message, ProtocolError, UnsupportedFlagError
 
 _SHORT_MAX = 0xFFFF
@@ -87,7 +86,11 @@ def decode(data, *, encryption_key: bytes | None = None) -> Message:
             msg = "Library pycryptodome is not installed. Install it before using encryption (pip install pycryptodome)."
             raise ImportError(msg)
         cipher = AESCipher(encryption_key)
-        payload_bytes = cipher.decrypt(payload_bytes)
+        try:
+            payload_bytes = cipher.decrypt(payload_bytes)
+        except ValueError as e:
+            msg = "Encryption error occurred."
+            raise ProtocolError(msg) from e
 
     if flags & Flag.COMPRESSED:
         payload_bytes = zlib.decompress(payload_bytes)

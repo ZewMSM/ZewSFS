@@ -10,6 +10,8 @@ class Transport(ABC):
     """Abstract base class for transports."""
 
     _closed: bool
+    _compress_threshold: int | None = None
+    _encryption_key: bytes | None = None
 
     def __init__(self) -> None:
         self._closed = True
@@ -23,19 +25,37 @@ class Transport(ABC):
         if self._closed:
             err_msg = "Connection closed by remote host"
             raise ConnectionError(err_msg)
-        await self._send_raw(encode(msg))
+        await self._send_raw(
+            encode(msg, compress_threshold=self._compress_threshold, encryption_key=self._encryption_key))
 
     async def recv(self) -> Message:
         if self._closed:
             msg = "Connection closed by remote host"
             raise ConnectionError(msg)
         raw = await self._recv_raw()
-        return decode(Buffer(raw))
+        return decode(Buffer(raw), encryption_key=self._encryption_key)
 
     async def close(self) -> None:
         if not self._closed:
             await self._close_impl()
             self._closed = True
+
+    async def listen(self) -> AsyncIterator[Message]:
+        """Async iterator over incoming messages."""
+        while not self._closed:
+            try:
+                yield await self.recv()
+            except (ConnectionError, RuntimeError):
+                break
+
+    async def __aenter__(self) -> "Transport":
+        """Async enter."""
+        await self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Async exit."""
+        await self.close()
 
     @abstractmethod
     async def _open(self) -> None:

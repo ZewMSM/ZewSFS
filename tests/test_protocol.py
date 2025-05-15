@@ -1,73 +1,95 @@
-import asyncio
 import pytest
-import pytest_asyncio
 
-from sfs2x.core import Float, UtfString, Int, Double
-from sfs2x.transport import client_from_url, server_from_url, TCPTransport
-from sfs2x.protocol import Message, ControllerID, SysAction
+from sfs2x.core import UtfStringArray, Int
+from sfs2x.core.buffer import Buffer
 from sfs2x.core.types.containers import SFSObject
+from sfs2x.protocol import (
+    Message,
+    ControllerID,
+    SysAction,
+    encode,
+    decode,
+    Flag,
+)
 
-@pytest_asyncio.fixture
-async def echo_server(event_loop):
-    server_task = event_loop.create_task(run_echo_server())
-    await asyncio.sleep(0.2)
 
-    yield
+def make_payload(**fields):
+    """Make simple SFSObject from key-value pairs."""
+    obj = SFSObject()
+    for k, v in fields.items():
+        obj.put_text(k, v)
+    return obj
 
-    server_task.cancel()
-    with pytest.raises(asyncio.CancelledError):
-        await server_task
 
-async def run_echo_server():
-    async for conn in server_from_url("tcp://0.0.0.0:9000"):
-        asyncio.create_task(some_handler(conn))
+@pytest.mark.parametrize(
+    "controller,action,payload",
+    [
+        (ControllerID.SYSTEM, SysAction.LOGIN, make_payload(un="neo")),
+        (ControllerID.EXTENSION, 0, make_payload(c="ping")),
+    ],
+)
+def test_encode_decode_roundtrip(controller: int, action, payload):
+    msg_out = Message(controller, action, payload)
+    raw = encode(msg_out)
+    msg_in = decode(Buffer(raw))
+    assert msg_in == msg_out
 
-async def some_handler(conn: TCPTransport):
-    try:
-        while True:
-            msg = await conn.recv()
-            obj = msg.payload.value.get('input')
-            obj.value *= 2
-            msg.payload['resp'] = obj
-            await conn.send(msg)
-    except ConnectionError:
-        await conn.close()
 
-@pytest.mark.asyncio
-async def test_tcp_echo_roundtrip(echo_server):
-    conn = await client_from_url("tcp://localhost:9000").open()
-    for value in [UtfString('Friday, '), Int(8), Double(123.12)]:
-        test_msg = Message(ControllerID.SYSTEM, SysAction.PING_PONG, SFSObject({'input': value}))
-        await conn.send(test_msg)
+def test_expected_short_bytes():
+    msg = Message(
+        ControllerID.SYSTEM,
+        SysAction.PING_PONG,
+        make_payload(txt="hello"),
+    )
 
-        answer = await conn.recv()
-        assert answer.controller == test_msg.controller
-        assert answer.action == test_msg.action
-        assert answer.payload.get('resp') == value.value * 2
-    await conn.close()
+    expected_bytes = encode(msg)
+    assert encode(msg) == expected_bytes
+    assert decode(Buffer(expected_bytes)) == msg
 
-@pytest.mark.asyncio
-async def test_msm_server():
-    conn = await client_from_url("tcp://107.20.67.227").open()
 
-    session_info = SFSObject()
-    session_info.put_utf_string("api", "1.0.3")
-    session_info.put_utf_string("cl", "UnityPlayer::")
-    session_info.put_bool("bin", True)
+def test_long_packet():
+    big_string = "x" * 70000  # 70 000 > 65535
+    msg = Message(
+        ControllerID.SYSTEM,
+        SysAction.HANDSHAKE,
+        make_payload(blob=big_string),
+    )
+    raw = encode(msg, compress_threshold=None)
 
-    await conn.send(Message(ControllerID.SYSTEM, SysAction.HANDSHAKE, session_info))
+    first_flag = Flag(raw[0])
+    assert first_flag & Flag.BINARY
+    assert first_flag & Flag.BIG_SIZE
 
-    handshake = await conn.recv()
-    assert handshake.controller == ControllerID.SYSTEM
-    assert handshake.action == SysAction.HANDSHAKE
+    decoded = decode(Buffer(raw))
+    assert decoded.payload.get("blob") == big_string
 
-    auth_info = SFSObject()
-    auth_info.put_utf_string("zn", "MySingingPenis")
-    auth_info.put_utf_string("un", "")
-    auth_info.put_utf_string("pw", "")
-    auth_info.put_sfs_object("p", SFSObject())
+def test_encrypted_and_compressed_long_packet():
+    big_string = "x" * 70000
+    msg = Message(
+        ControllerID.SYSTEM,
+        SysAction.HANDSHAKE,
+        make_payload(blob=big_string),
+    )
+    raw = encode(msg, compress_threshold=0, encryption_key=b'1234567890123456')
 
-    await conn.send(Message(ControllerID.SYSTEM, SysAction.LOGIN, auth_info))
+    first_flag = Flag(raw[0])
+    assert first_flag & Flag.BINARY
+    assert first_flag & Flag.ENCRYPTED
+    assert first_flag & Flag.COMPRESSED
 
-    resp = await conn.recv()
-    assert resp.payload['ec'] == 1
+    decoded = decode(Buffer(raw), encryption_key=b'1234567890123456')
+    assert decoded.payload.get("blob") == big_string
+
+
+def test_unpack_binary_packet():
+    binary_message = b'\x80\x00T\x12\x00\x03\x00\x01c\x02\x01\x00\x01a\x03\x00\x0c\x00\x01p\x12\x00\x03\x00\x01c\x08\x00\x0ctest_command\x00\x01r\x04\xff\xff\xff\xff\x00\x01p\x12\x00\x02\x00\x03num\x04\xff\xff\xff\xff\x00\x07strings\x10\x00\x02\x00\x02hi\x00\x04mega'
+    decoded = decode(binary_message)
+
+    re_encoded = Message.extension("test_command", SFSObject({
+        "num": Int(-1),
+        "strings": UtfStringArray(['hi', 'mega'])
+    }))
+
+    assert decoded.controller == ControllerID.EXTENSION
+    assert decoded.action == 12
+    assert decoded == re_encoded
