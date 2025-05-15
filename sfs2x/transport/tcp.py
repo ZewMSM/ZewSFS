@@ -64,6 +64,7 @@ class TCPAcceptor(Acceptor):
         self._server: AbstractServer | None = None
 
     async def __aiter__(self) -> AsyncIterator[Transport]:
+        """Iterate all new connections."""
         loop = get_running_loop()
         self._server = await start_server(self._on_conn, self._host, self._port)
         logger.info(f"Started server on {self._host}:{self._port}")  # noqa: G004
@@ -74,7 +75,7 @@ class TCPAcceptor(Acceptor):
             async with self._server:
                 await self._server.serve_forever()
 
-        loop.create_task(producer())
+        loop.create_task(producer())  # noqa: RUF006
 
         try:
             while True:
@@ -86,7 +87,7 @@ class TCPAcceptor(Acceptor):
         host, port = writer.get_extra_info("peername")
         logger.info(f"Connection from {host}:{port}")  # noqa: G004
         transport = TCPTransport(host, port)
-        transport._reader = reader
-        transport._writer = writer
-        transport._closed = False
+        transport._reader = reader  # noqa: SLF001
+        transport._writer = writer  # noqa: SLF001
+        transport._closed = False  # noqa: SLF001
         await self._queue.put(transport)

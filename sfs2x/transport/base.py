@@ -15,7 +15,7 @@ class Transport(ABC):
     def __init__(self) -> None:
         self._closed = True
 
-    async def open(self) -> None:
+    async def open(self) -> "Transport":
         await self._open()
         self._closed = False
         return self
@@ -31,7 +31,7 @@ class Transport(ABC):
         raw = await self._recv_raw()
         return decode(Buffer(raw))
 
-    async def close(self):
+    async def close(self) -> None:
         if not self._closed:
             await self._close_impl()
             self._closed = True
