@@ -23,6 +23,8 @@ compression.
     - [Working with `SFSObject` and `SFSArray`](#working-with-sfsobject-and-sfsarray)
     - [Serialization / Deserialization](#serialization--deserialization)
     - [Encrypted or Compressed Packets](#encrypted-or-compressed-packets)
+ 
+- [Handling Extension Requests](#handling-extension-requests)
 
 - [Development Status](#development-status)
 - [Contributing](#contributing)
@@ -242,4 +244,50 @@ packet = encode(msg, compress_threshold=512, encryption_key=encryption_key)
 
 # Decoding
 decoded_msg = decode(packet, encryption_key=encryption_key)
+```
+
+## Handling Extension Requests
+
+To handle extension requests, simply parse the incoming payload and check for the command field.
+
+### Server Example
+
+```python
+import asyncio
+import time
+from sfs2x.transport import server_from_url, TCPTransport
+from sfs2x.protocol import Message, ControllerID, SysAction
+from sfs2x.core import SFSObject, SFSArray
+
+async def send_extension_response(client, cmd, params):
+    ext_resp = SFSObject()
+    ext_resp.put_utf_string("c", cmd)
+    ext_resp.put_int("r", -1)
+    ext_resp.put_sfs_object("p", params)
+
+    await client.send(Message(
+        controller=ControllerID.EXTENSION,
+        action=12,
+        payload=ext_resp
+    ))
+
+async def handle_client(client: TCPTransport):
+    async for message in client.listen():
+        payload = message.payload
+        cmd = payload.get("c")
+        print("Received command:", cmd)
+
+        if cmd == "gs_quest":
+            response = SFSObject()
+            response.put_sfs_array("result", SFSArray())
+            await send_extension_response(client, cmd, response)
+
+
+async def run_server():
+    async for client in server_from_url("tcp://localhost:9933"):
+        print(f"New client connected: {client.host}:{client.port}")
+        asyncio.create_task(handle_client(client))
+
+if __name__ == "__main__":
+    asyncio.run(run_server())
 ```
