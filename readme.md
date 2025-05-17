@@ -323,7 +323,6 @@ async def handle_client(client: TCPTransport):
             response.put_sfs_array("result", SFSArray())
             await send_extension_response(client, cmd, response)
 
-
 async def run_server():
     async for client in server_from_url("tcp://localhost:9933"):
         print(f"New client connected: {client.host}:{client.port}")
