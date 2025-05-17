@@ -31,6 +31,7 @@ compression.
 - [Development Status](#development-status)
 - [Contributing](#contributing)
 - [License](#license)
+- [Todo](#todo)
 
 ---
 
@@ -331,3 +332,17 @@ async def run_server():
 if __name__ == "__main__":
     asyncio.run(run_server())
 ```
+
+## TODO
+
+We’re actively working to expand and improve ZewSFS. Here are some key features and enhancements planned for upcoming releases:
+
+- [ ] **WebSocket Transport:** Add support for WebSocket connections alongside TCP, enabling browser clients and increasing flexibility.
+
+- [ ] **High-Level Modules:** Build simplified, user-friendly server and client APIs to reduce boilerplate and speed up development.
+
+- [ ] **Advanced Encryption:** Introduce additional encryption algorithms beyond AES-128-CBC to enhance security options.
+
+- [ ] **Extensive Documentation:** Expand tutorials, guides, and real-world examples to help users onboard quickly and effectively.
+
+We welcome contributions and ideas! Stay tuned for updates as we continue making ZewSFS better for everyone.
