@@ -25,6 +25,7 @@ compression.
     - [Encrypted or Compressed Packets](#encrypted-or-compressed-packets)
  
 - [Handling Requests](#handling-requests)
+    - [Handling Handshake Requests](#handling-handshake-requests)
     - [Handling Extension Requests](#handling-extension-requests)
 
 - [Development Status](#development-status)
@@ -266,9 +267,9 @@ async def handle_client(client: TCPTransport):
             token = hashlib.md5(client._host.encode()).hexdigest()
 
             session_info = SFSObject()
-            session_info.put_int("ct", 1000000)
-            session_info.put_int("ms", 8000000)
-            session_info.put_utf_string("tk", token)
+            session_info.put_int("ct", 1000000) # protocol Compression Threshold
+            session_info.put_int("ms", 8000000) # max Incoming Request Size
+            session_info.put_utf_string("tk", token) # Session Token
             
             await client.send(Message(
                 controller=ControllerID.SYSTEM,
