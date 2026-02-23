@@ -7,8 +7,8 @@ class Flag(IntFlag):
 
     BINARY = 0x80
     BLUEBOX = 0x10
-    COMPRESSED = 0x20
-    ENCRYPTED = 0x40
+    COMPRESSED = 0x40
+    ENCRYPTED = 0x20
     BIG_SIZE = 0x08
 
 

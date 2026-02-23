@@ -133,7 +133,7 @@ class SFSObject(Field[dict[str, Field]]):
                 yield v.value
 
     def items(self) -> Iterator[tuple[str, Any]]:
-        for k, v in self.items():
+        for k, v in self.value.items():
             if type(v) in (SFSObject, SFSArray):
                 yield k, v
             else:
