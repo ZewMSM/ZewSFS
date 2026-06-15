@@ -9,8 +9,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sfs2x"
-version = "0.1.0.1"
-description = "Python-Based implementation of SmartFoxServer2X (SFS2X) Protocol."
+version = "0.2.0"
+description = "High-level SmartFoxServer 2X client & server for Python."
 authors = [{name="Zewsic", email="me@zewsic.pro"}]
 readme = "readme.md"
 license = {text = "MIT"}
