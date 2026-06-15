@@ -14,7 +14,10 @@ description = "Python-Based implementation of SmartFoxServer2X (SFS2X) Protocol.
 authors = [{name="Zewsic", email="me@zewsic.pro"}]
 readme = "readme.md"
 license = {text = "MIT"}
-dependencies = []
+dependencies = ["websockets>=12"]
+
+[project.optional-dependencies]
+crypto = ["pycryptodome"]
 
 ##################################################
 # Ruff Config
