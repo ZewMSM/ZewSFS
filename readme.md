@@ -1,62 +1,63 @@
 # ZewSFS
 
-**ZewSFS** is a Python implementation of the
-[SmartFoxServer 2X (SFS2X)](https://www.smartfoxserver.com/) binary protocol —
-both the client and the server side. It ships the rich SFS2X data model
-(`SFSObject`, `SFSArray`, typed fields), a message codec with optional
-compression and AES encryption, and pluggable transports for raw TCP and
-WebSockets (the standard binary sub-protocol introduced in SFS2X v2.13).
+**High-level SmartFoxServer 2X client & server for Python.**
 
+Decorator-driven handlers, typed request/response models, and async
+client/server lifecycle on top of a complete pure-Python
+SmartFoxServer 2X (SFS2X) binary protocol stack — TCP and WebSocket,
+optional zlib compression and AES-128 encryption.
+
+```python
+from sfs2x import SFSClient, ExtensionRequest, ExtensionResponse, field
+from sfs2x.app import Int, UtfString
+
+
+class PingRequest(ExtensionRequest, command="ping"):
+    n: Int = field("n")
+
+
+class PongResponse(ExtensionResponse, command="ping"):
+    n: Int = field("n")
+    name: UtfString = field("name")
+
+
+client = SFSClient("tcp://localhost:9933")
+
+
+@client.on_extension(command="ping")
+async def on_pong(reply: PongResponse):
+    print(f"pong: {reply.n} from {reply.name}")
+
+
+async with client:
+    await client.handshake()
+    await client.login(zone="MyZone", username="alice")
+    await client.call_extension("ping", PingRequest(n=42))
+    await client.run_forever()
 ```
-                    ┌──────────────────────────┐
-                    │        Application       │
-                    └────────────┬─────────────┘
-                       Message(controller, action, payload)
-                    ┌────────────┴─────────────┐
-                    │  sfs2x.protocol  (codec) │   ← compression, AES
-                    └────────────┬─────────────┘
-                            on-wire bytes
-                    ┌────────────┴─────────────┐
-                    │ sfs2x.transport (TCP/WS) │
-                    └──────────────────────────┘
-```
-
-## Contents
-
-- [Features](#features)
-- [Installation](#installation)
-- [Quick start](#quick-start)
-    - [TCP client](#tcp-client)
-    - [TCP server](#tcp-server)
-    - [WebSocket client](#websocket-client)
-    - [WebSocket server](#websocket-server)
-- [Modules overview](#modules-overview)
-- [Working with `SFSObject` / `SFSArray`](#working-with-sfsobject--sfsarray)
-- [Compression and encryption](#compression-and-encryption)
-- [URL → transport mapping](#url--transport-mapping)
-- [Status and roadmap](#status-and-roadmap)
-- [Contributing](#contributing)
-- [License](#license)
-
----
 
 ## Features
 
-- **Core data model** — `SFSObject`, `SFSArray` and all the typed primitives
-  (`Bool`, `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`, `UtfString`,
-  `Text`, and their array variants) with byte-perfect round-trip encoding.
-- **Protocol codec** — `Message ↔ bytes` with optional `zlib` compression
-  over a configurable threshold and optional AES-128-CBC encryption.
-- **TCP transport** — async client (`TCPTransport`) and acceptor
-  (`TCPAcceptor`) built on `asyncio.open_connection` /
-  `asyncio.start_server`.
-- **WebSocket transport** — async client (`WSTransport`) and acceptor
-  (`WSAcceptor`) speaking SFS2X v2.13+'s binary WebSocket sub-protocol over
-  `ws://` and `wss://`. Each WebSocket binary frame carries one complete
-  SFS2X packet so the codec is shared with the TCP transport.
-- **URL factories** — `client_from_url("tcp://...")` /
-  `server_from_url("ws://.../BlueBox/websocket")` pick the right transport
-  for you.
+- **Decorator handlers** — `@client.on_login()`, `@server.on_handshake()`,
+  `@server.on_extension(command="…")`, `@client.on_message()` catch-all,
+  plus `on_connect` / `on_disconnect` / `on_error` lifecycle hooks.
+- **Typed models** — annotate fields with SFS types (`UtfString`, `Int`,
+  `Long`, …) and the model serialises/parses against `SFSObject`
+  automatically. Nested models supported.
+- **`raise` to reply** — `raise PongResponse(n=42)` sends the answer.
+  `return PongResponse(...)` works too. `raise Reply(model)` if you want
+  the explicit wrapper.
+- **Union dispatch** — handlers can declare
+  `req: LoginResponse | LoginErrorResponse`; the first matching schema
+  wins.
+- **Built-in system models** — `HandshakeRequest`, `LoginRequest`,
+  `LogoutRequest`, `PingPongRequest` and their responses come ready
+  to use.
+- **Sessions** — server handlers get a `ServerSession` per connection
+  with `state: dict`, `zone`/`username`/`user_id` slots, `send()` and
+  `kick()`.
+- **TCP & WebSocket** transports with the same API. Optional `zlib`
+  compression and AES-128-CBC encryption.
 
 ## Installation
 
@@ -64,293 +65,273 @@ WebSockets (the standard binary sub-protocol introduced in SFS2X v2.13).
 pip install sfs2x          # or: uv pip install sfs2x
 ```
 
-`websockets` is pulled in as a hard dependency. AES encryption is optional
-and requires PyCryptodome:
+AES encryption requires PyCryptodome:
 
 ```bash
-pip install sfs2x[crypto]  # or: pip install pycryptodome
+pip install sfs2x[crypto]
 ```
 
 ## Quick start
 
-### TCP client
+### Client
 
 ```python
 import asyncio
-from sfs2x.transport import client_from_url
-from sfs2x.protocol import Message, ControllerID, SysAction
-from sfs2x.core import SFSObject
+from sfs2x import SFSClient, ExtensionRequest, ExtensionResponse, field
+from sfs2x import LoginErrorResponse, LoginResponse
+from sfs2x.app import Int, UtfString
 
 
-async def main() -> None:
-    async with client_from_url("tcp://localhost:9933") as client:
-        payload = SFSObject().put_utf_string("message", "Hello from ZewSFS!")
-        await client.send(Message(
-            controller=ControllerID.SYSTEM,
-            action=SysAction.PUBLIC_MESSAGE,
-            payload=payload,
-        ))
-        print("Reply:", await client.recv())
+class JoinGameRequest(ExtensionRequest, command="joinGame"):
+    room: UtfString = field("r")
+
+
+class JoinGameResponse(ExtensionResponse, command="joinGame"):
+    game_id: Int = field("gid")
+    seat: Int = field("s")
+
+
+client = SFSClient("tcp://localhost:9933")
+
+
+@client.on_login()
+async def on_login(reply: LoginErrorResponse | LoginResponse):
+    if isinstance(reply, LoginErrorResponse):
+        print(f"login failed: {reply.error_message}")
+        return
+    print(f"logged in as {reply.username} (id={reply.user_id})")
+    await client.call_extension("joinGame", JoinGameRequest(room="main"))
+
+
+@client.on_extension(command="joinGame")
+async def on_joined(reply: JoinGameResponse):
+    print(f"joined game {reply.game_id}, seat {reply.seat}")
+
+
+async def main():
+    async with client:
+        await client.handshake()
+        await client.login(zone="MyZone", username="alice", password="secret")
+        await client.run_forever()
 
 
 asyncio.run(main())
 ```
 
-### TCP server
+### Server
 
 ```python
 import asyncio
-from sfs2x.transport import server_from_url, Transport
-from sfs2x.protocol import Message
-from sfs2x.core import SFSObject
+from sfs2x import (
+    SFSServer, LoginRequest, LoginResponse, LoginErrorResponse,
+    ExtensionRequest, ExtensionResponse, ServerSession, field,
+)
+from sfs2x.app import Int, UtfString
 
 
-async def handle(client: Transport) -> None:
-    async for msg in client.listen():
-        await client.send(Message(
-            controller=msg.controller,
-            action=msg.action,
-            payload=SFSObject({"echo": msg.payload}),
-        ))
+class JoinGameRequest(ExtensionRequest, command="joinGame"):
+    room: UtfString = field("r")
 
 
-async def main() -> None:
-    async with server_from_url("tcp://0.0.0.0:9933") as acceptor:
-        async for client in acceptor:
-            print(f"Client connected: {client.host}:{client.port}")
-            asyncio.create_task(handle(client))
+class JoinGameResponse(ExtensionResponse, command="joinGame"):
+    game_id: Int = field("gid")
+    seat: Int = field("s")
 
 
-asyncio.run(main())
+server = SFSServer("tcp://0.0.0.0:9933")
+
+
+@server.on_login()
+async def on_login(req: LoginRequest, session: ServerSession):
+    if req.password != "secret":
+        raise LoginErrorResponse(error_code=1, error_message="wrong password")
+    session.zone = req.zone
+    session.username = req.username
+    session.user_id = 42
+    raise LoginResponse(zone=req.zone, username=req.username, user_id=42)
+
+
+@server.on_extension(command="joinGame")
+async def on_join(req: JoinGameRequest, session: ServerSession):
+    print(f"{session.username} joining {req.room}")
+    raise JoinGameResponse(game_id=1, seat=3)
+
+
+asyncio.run(server.serve_forever())
 ```
 
-### WebSocket client
+## Defining models
 
-The default SFS2X WebSocket endpoint path is `/BlueBox/websocket`.
+A model is a class whose annotations are SFS types — never plain Python
+types. The annotation tells the wire format what to encode; the attribute
+itself stores the raw Python value, so the model behaves like a dataclass
+at runtime.
 
 ```python
-import asyncio
-from sfs2x.transport import client_from_url
-from sfs2x.protocol import Message, ControllerID, SysAction
-from sfs2x.core import SFSObject
+from sfs2x import SFSModel, field
+from sfs2x.app import UtfString, Int, Long, SFSObject, UtfStringArray
 
 
-async def main() -> None:
-    url = "ws://localhost:8080/BlueBox/websocket"
-    async with client_from_url(url) as client:
-        await client.send(Message(
-            controller=ControllerID.SYSTEM,
-            action=SysAction.HANDSHAKE,
-            payload=SFSObject()
-                .put_utf_string("api", "1.7.3")
-                .put_utf_string("cl", "Python/ZewSFS")
-                .put_bool("bin", True),
-        ))
-        print("Handshake reply:", await client.recv())
+class PlayerProfile(SFSModel):
+    name:      UtfString       = field("n")
+    score:     Long            = field("s")        # 64-bit on the wire
+    level:     Int             = field("lvl")
+    nicknames: UtfStringArray  = field("alts")     # list of strings
+    extras:    SFSObject       = field("x", default_factory=SFSObject)
+    bio:       UtfString | None = field("bio", default=None)   # optional
 
 
-asyncio.run(main())
+p = PlayerProfile(name="alice", score=99999, level=12, nicknames=["a", "al"])
+obj = p.to_sfs_object()        # → SFSObject ready to send
+back = PlayerProfile.from_sfs_object(obj)
+assert back == p
 ```
 
-For TLS, point the client at `wss://...` and (optionally) pass an
-`ssl.SSLContext`:
+Nested models work the same way — just use another `SFSModel` subclass
+as the annotation:
 
 ```python
-import ssl
-client_from_url("wss://game.example.com/BlueBox/websocket", ssl=ssl.create_default_context())
+class Vec2(SFSModel):
+    x: Int = field("x")
+    y: Int = field("y")
+
+
+class Move(SFSModel):
+    player: UtfString = field("p")
+    target: Vec2      = field("t")     # nested SFSObject on the wire
 ```
 
-### WebSocket server
+For one-off payloads where you don't want a model, declare the field as
+`SFSObject` / `SFSArray` and pass them through directly.
+
+## Handler signatures
+
+The dispatcher inspects each handler's signature and injects whatever
+you annotate. Pick any subset:
+
+| Annotation                          | What gets injected                          |
+|-------------------------------------|----------------------------------------------|
+| `Message`                           | the raw `Message` packet                     |
+| `SFSObject`                         | extension `"p"` sub-object, or system payload|
+| `ServerSession` / `ClientSession`   | the per-connection session                   |
+| `SFSClient` / `SFSServer`           | the owning client or server                  |
+| `MyModel` (an `SFSModel` subclass)  | the parsed model                             |
+| `A \| B` (union of models)          | first candidate that parses successfully     |
 
 ```python
-import asyncio
-from sfs2x.transport import server_from_url, Transport
-from sfs2x.protocol import Message
-
-
-async def handle(client: Transport) -> None:
-    async for msg in client.listen():
-        await client.send(msg)  # echo
-
-
-async def main() -> None:
-    async with server_from_url("ws://0.0.0.0:8080/BlueBox/websocket") as acceptor:
-        async for client in acceptor:
-            print(f"WS client connected: {client.host}:{client.port}")
-            asyncio.create_task(handle(client))
-
-
-asyncio.run(main())
-```
-
-## Modules overview
-
-### `sfs2x.core`
-
-Low-level data model and binary encoding/decoding:
-
-- **Primitives**: `Bool`, `Byte`, `Short`, `Int`, `Long`, `Float`, `Double`,
-  `UtfString`, `Text`.
-- **Arrays**: `BoolArray`, `ByteArray`, `ShortArray`, `IntArray`,
-  `LongArray`, `FloatArray`, `DoubleArray`, `UtfStringArray`.
-- **Containers**: `SFSObject` (keyed) and `SFSArray` (ordered).
-- **Helpers**: `Buffer` (byte cursor), `decode` / `register` (raw
-  bytes ↔ typed values).
-
-### `sfs2x.protocol`
-
-Wire-format codec:
-
-- `Message(controller, action, payload)` — high-level packet.
-- `Flag` — header bit flags (`BINARY`, `COMPRESSED`, `ENCRYPTED`,
-  `BIG_SIZE`, `BLUEBOX`).
-- `encode(msg, *, compress_threshold, encryption_key)` and
-  `decode(buf_or_bytes, *, encryption_key)`.
-- `AESCipher` — AES-128-CBC helper (requires `pycryptodome`).
-- `ControllerID`, `SysAction` — protocol-level enums.
-
-### `sfs2x.transport`
-
-Connection-level abstractions and concrete implementations:
-
-| Symbol                | Purpose                                       |
-| --------------------- | --------------------------------------------- |
-| `Transport`           | Abstract base for client-side connections.    |
-| `Acceptor`            | Abstract base for server-side acceptors.      |
-| `TransportClosedError`| Raised when the connection is no longer open. |
-| `TCPTransport`        | TCP client via `asyncio.open_connection`.     |
-| `TCPAcceptor`         | TCP server via `asyncio.start_server`.        |
-| `WSTransport`         | WebSocket client (`ws://` / `wss://`).        |
-| `WSAcceptor`          | WebSocket server (default path `/BlueBox/websocket`). |
-| `client_from_url`     | URL → `Transport`.                            |
-| `server_from_url`     | URL → `Acceptor`.                             |
-
-A `Transport` lifecycle is:
-
-```python
-async with client_from_url(url) as t:
-    await t.send(msg)
-    reply = await t.recv()
-    async for msg in t.listen():
+@server.on_extension(command="x")
+async def h(req: RequestA | RequestB,
+            raw: SFSObject,
+            session: ServerSession,
+            msg: Message):
+    if isinstance(req, RequestA):
         ...
 ```
 
-An `Acceptor` lifecycle mirrors it:
+## Sending responses
+
+Three equivalent forms, pick whichever reads best:
 
 ```python
-async with server_from_url(url) as acceptor:
-    async for client in acceptor:
-        ...
+@server.on_extension(command="x")
+async def h(req: XRequest):
+    raise XResponse(value=1)                # raise the response model
+
+@server.on_extension(command="x")
+async def h(req: XRequest):
+    return XResponse(value=1)               # or return it
+
+@server.on_extension(command="x")
+async def h(req: XRequest, session):
+    raise Reply(XResponse(value=1))         # or wrap in Reply
+    # equivalent: await session.send(XResponse(value=1))
 ```
 
-## Working with `SFSObject` / `SFSArray`
+`raise` is convenient because it short-circuits nested logic; the
+dispatcher catches it, builds the reply `Message` (echoing the original
+extension request id so the peer can correlate), and sends it.
 
-**Fluent / imperative**:
+## Built-in system models
+
+| Action            | Request                 | Response                                       |
+|-------------------|--------------------------|------------------------------------------------|
+| `HANDSHAKE`       | `HandshakeRequest`       | `HandshakeResponse`                            |
+| `LOGIN`           | `LoginRequest`           | `LoginResponse` / `LoginErrorResponse`         |
+| `LOGOUT`          | `LogoutRequest`          | `LogoutResponse`                               |
+| `PING_PONG`       | `PingPongRequest`        | `PingPongResponse`                             |
+
+Convenience helpers on `SFSClient`:
 
 ```python
-from sfs2x.core import SFSObject, SFSArray
-
-obj = SFSObject()
-obj.put_int("score", 1200) \
-   .put_double_array("history", [3.14, -4.5, 2.7]) \
-   .put_bool("isAdmin", True)
-
-arr = SFSArray()
-arr.add_utf_string("item1").add_utf_string("item2")
-obj["items"] = arr
+await client.handshake(api="1.7.3", cl="Python/ZewSFS")
+await client.login(zone="MyZone", username="alice", password="secret")
+await client.logout()
+await client.call_extension("cmd", MyRequest(x=1))
 ```
 
-**Declarative**:
+## WebSocket & TLS
+
+Swap the URL — everything else stays identical.
 
 ```python
-from sfs2x.core import UtfString, Int, SFSObject
+SFSClient("ws://localhost:8080/BlueBox/websocket")
+SFSClient("wss://game.example.com/BlueBox/websocket", ssl=ssl.create_default_context())
 
-obj = SFSObject({
-    "name": UtfString("Zewsic"),
-    "score": Int(2022),
-    "items": [
-        UtfString("Sword"),
-        UtfString("Shield"),
-        SFSObject({"key": UtfString("value")}),
-    ],
-    "object": {"some": UtfString("thing")},
-})
+SFSServer("ws://0.0.0.0:8080/BlueBox/websocket")
 ```
 
-**Round-tripping bytes**:
+The default WebSocket path is `/BlueBox/websocket` (SFS2X v2.13+).
 
-```python
-from sfs2x.core import decode, SFSObject, Int
+## Compression & encryption
 
-obj = SFSObject({"example": Int(42)})
-raw = obj.to_bytes()
-restored: SFSObject = decode(raw)
-print(restored.get("example"))  # 42
-```
-
-## Compression and encryption
-
-Both transports accept the same kwargs and forward them straight to the
+Both transports take the same kwargs and forward them straight to the
 codec:
 
 ```python
-from sfs2x.transport import client_from_url
-
-client = client_from_url(
+client = SFSClient(
     "ws://game.example.com/BlueBox/websocket",
-    compress_threshold=512,       # zlib-compress payloads > 512 bytes
-    encryption_key=b"my_secret_16byte",  # AES-128-CBC
+    compress_threshold=512,                # zlib-compress payloads > 512 bytes
+    encryption_key=b"my_secret_16byte",    # AES-128-CBC
 )
 ```
 
-Or, using the codec directly:
+## Going lower-level
+
+For direct access to the wire format — raw `Message`, `encode`/`decode`,
+`SFSObject` construction, custom `Transport` implementations — see:
+
+- [`docs/lowlevel.md`](docs/lowlevel.md) — `sfs2x.core`, `sfs2x.protocol`,
+  `sfs2x.transport`.
+- [`docs/protocol.md`](docs/protocol.md) — `ControllerID` / `SysAction`
+  tables, wire envelope, SFS2X payload-key conventions.
+
+All low-level symbols are re-exported from `sfs2x.app`:
 
 ```python
-from sfs2x.protocol import Message, encode, decode, ControllerID
-from sfs2x.core import SFSObject, UtfString
-
-msg = Message(controller=ControllerID.EXTENSION, action=18,
-              payload={"secret": UtfString("HideMe")})
-packet = encode(msg, compress_threshold=512, encryption_key=b"my_secret_16byte")
-restored = decode(packet, encryption_key=b"my_secret_16byte")
+from sfs2x.app import Message, SFSObject, encode, decode, client_from_url, ...
 ```
 
-## URL → transport mapping
+## Status & roadmap
 
-| Scheme  | Client             | Server               | Default port | Default path           |
-| ------- | ------------------ | -------------------- | ------------ | ---------------------- |
-| `tcp`   | `TCPTransport`     | `TCPAcceptor`        | `9933`       | —                      |
-| `ws`    | `WSTransport`      | `WSAcceptor`         | `8080`       | `/BlueBox/websocket`   |
-| `wss`   | `WSTransport(TLS)` | `WSAcceptor(TLS)`    | `443`        | `/BlueBox/websocket`   |
+The high-level API covers handshake, login/logout, ping-pong and
+arbitrary extension calls on both TCP and WebSocket. Planned:
 
-Path defaults are the SFS2X conventions — set an explicit path in the URL
-to override (e.g. `ws://host:8080/custom/socket`). For `wss://`, pass
-`ssl=ssl.SSLContext(...)` to the factory.
-
-## Status and roadmap
-
-This library covers the **binary protocol** and the **two main transports**
-(TCP and WebSocket). It is intended as a low-level building block — there
-is no high-level SmartFox-style session yet.
-
-Planned / in development:
-
-- `SFSClient` / `SFSServer` high-level wrappers (handshake, login, room and
-  user variables, extension call helpers).
-- BlueBox HTTP tunneling transport.
-- UDP transport for unreliable high-frequency channels.
+- Room and user-variable helpers.
+- Request/response correlation for `await client.call_extension(...) -> Response`.
+- BlueBox HTTP tunnelling.
+- UDP transport for high-frequency channels.
 
 Contributions and protocol-edge bug reports are very welcome.
 
 ## Contributing
 
-Issues and pull requests are tracked on
-[GitHub](https://github.com/zewmsm/ZewSFS). Run the tests with:
-
 ```bash
 pip install -e . websockets pytest pytest-asyncio pycryptodome
 pytest
 ```
+
+Issues and pull requests are tracked on
+[GitHub](https://github.com/zewmsm/ZewSFS).
 
 ## License
 
