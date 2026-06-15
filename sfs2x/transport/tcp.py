@@ -1,58 +1,75 @@
 import asyncio
+import contextlib
 import logging
-from asyncio import AbstractServer, IncompleteReadError, StreamReader, StreamWriter, get_running_loop, start_server
-from collections.abc import AsyncIterator
+from asyncio import AbstractServer, IncompleteReadError, StreamReader, StreamWriter
+from typing import Self
 
 from sfs2x.protocol import Flag
-from sfs2x.transport import Acceptor, Transport
+from sfs2x.transport.base import Acceptor, Transport, TransportClosedError
 
 logger = logging.getLogger("SFS2X/TCPTransport")
 
 
 class TCPTransport(Transport):
-    """SmartFox Transport realisation with Async Streams."""
+    """SFS2X transport over raw TCP using asyncio streams."""
 
-    def __init__(self, host: str, port: int, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
-        super().__init__()
-        self._host = host
-        self._port = port
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        compress_threshold: int | None = None,
+        encryption_key: bytes | None = None,
+    ) -> None:
+        super().__init__(
+            host,
+            port,
+            compress_threshold=compress_threshold,
+            encryption_key=encryption_key,
+        )
         self._reader: StreamReader | None = None
         self._writer: StreamWriter | None = None
-        self._encryption_key = encryption_key
-        self._compress_threshold = compress_threshold
 
-    @property
-    def host(self) -> str:
-        return self._host
-
-    @property
-    def port(self) -> int:
-        return self._port
+    @classmethod
+    def _from_streams(
+        cls,
+        reader: StreamReader,
+        writer: StreamWriter,
+        *,
+        compress_threshold: int | None = None,
+        encryption_key: bytes | None = None,
+    ) -> Self:
+        host, port = writer.get_extra_info("peername")[:2]
+        inst = cls(
+            host,
+            port,
+            compress_threshold=compress_threshold,
+            encryption_key=encryption_key,
+        )
+        inst._reader = reader
+        inst._writer = writer
+        inst._opened = True
+        return inst
 
     async def _open(self) -> None:
-        self._reader, self._writer = await asyncio.open_connection(self._host, self._port)
-        logger.info("Opened connection to %s:%s", self._host, self._port)
+        self._reader, self._writer = await asyncio.open_connection(self.host, self.port)
+        logger.info("Opened connection to %s:%s", self.host, self.port)
 
     async def _send_raw(self, raw: bytes) -> None:
-        if not self._writer:
-            msg = "Connection closed by remote host"
-            raise ConnectionError(msg)
-
+        if self._writer is None:
+            raise TransportClosedError("Connection closed by remote host")
         self._writer.write(raw)
         await self._writer.drain()
-        logger.info("Sent %s bytes", {len(raw)})
+        logger.info("Sent %s bytes", len(raw))
 
     async def _recv_raw(self) -> bytes:
-        if not self._reader:
-            msg = "Connection closed by remote host"
-            raise ConnectionError(msg)
-
+        if self._reader is None:
+            raise TransportClosedError("Connection closed by remote host")
         try:
-            _flags = await self._reader.readexactly(1)
-            flags = Flag(_flags[0])
+            flag_byte = await self._reader.readexactly(1)
+            flags = Flag(flag_byte[0])
             if not flags & Flag.BINARY:
-                msg = "Invalid packet type"
-                raise RuntimeWarning(msg)
+                raise RuntimeError("Invalid packet type")
 
             len_bytes = await self._reader.readexactly(2)
             if flags & Flag.BIG_SIZE:
@@ -61,58 +78,59 @@ class TCPTransport(Transport):
             length = int.from_bytes(len_bytes, byteorder="big", signed=False)
             body = await self._reader.readexactly(length)
         except IncompleteReadError as e:
-            msg = "Connection closed by remote host"
-            raise ConnectionError(msg) from e
+            raise TransportClosedError("Connection closed by remote host") from e
 
-        logger.info("Received %s bytes from %s:%s", length, self._host, self._port)
-
-        return _flags + len_bytes + body
+        logger.info("Received %s bytes from %s:%s", length, self.host, self.port)
+        return flag_byte + len_bytes + body
 
     async def _close_impl(self) -> None:
         if self._writer:
             self._writer.close()
-            await self._writer.wait_closed()
-        logger.info("Closed connection to %s:%s", self._host, self._port)
+            with contextlib.suppress(ConnectionError):
+                await self._writer.wait_closed()
+        logger.info("Closed connection to %s:%s", self.host, self.port)
 
 
 class TCPAcceptor(Acceptor):
-    """Server-Side implementation of the TCP Acceptor."""
+    """Server-side TCP acceptor.
 
-    def __init__(self, host: str, port: int, compress_threshold: int | None = None, encryption_key: bytes | None = None) -> None:
-        super().__init__()
-        self._host = host
-        self._port = port
+    Each accepted connection is wrapped in a :class:`TCPTransport` ready
+    to ``send`` / ``recv`` / ``listen`` SFS2X messages.
+    """
+
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        *,
+        compress_threshold: int | None = None,
+        encryption_key: bytes | None = None,
+    ) -> None:
+        super().__init__(
+            host,
+            port,
+            compress_threshold=compress_threshold,
+            encryption_key=encryption_key,
+        )
         self._server: AbstractServer | None = None
-        self._compress_threshold = compress_threshold
-        self._encryption_key = encryption_key
 
-    async def __aiter__(self) -> AsyncIterator[Transport]:  # type: ignore  # noqa: PGH003
-        """Iterate all new connections."""
-        loop = get_running_loop()
-        self._server = await start_server(self._on_conn, self._host, self._port)
-        logger.info("Started server on %s:%s", self._host, self._port)
+    async def _start(self) -> None:
+        self._server = await asyncio.start_server(self._on_conn, self.host, self.port)
+        logger.info("Started TCP server on %s:%s", self.host, self.port)
 
-        self._queue: asyncio.Queue[TCPTransport] = asyncio.Queue()
-
-        async def producer() -> None:
-            async with self._server:  # type: ignore  # noqa: PGH003
-                await self._server.serve_forever()  # type: ignore  # noqa: PGH003
-
-        loop.create_task(producer())  # noqa: RUF006
-
-        try:
-            while True:
-                yield await self._queue.get()
-        finally:
+    async def _close(self) -> None:
+        if self._server is not None:
             self._server.close()
+            with contextlib.suppress(Exception):
+                await self._server.wait_closed()
+        logger.info("Stopped TCP server on %s:%s", self.host, self.port)
 
     async def _on_conn(self, reader: StreamReader, writer: StreamWriter) -> None:
-        host, port = writer.get_extra_info("peername")
-        logger.info("Connection from %s:%s", host, port)
-        transport = TCPTransport(host, port)
-        transport._reader = reader  # noqa: SLF001
-        transport._writer = writer  # noqa: SLF001
-        transport._closed = False  # noqa: SLF001
-        transport._encryption_key = self._encryption_key  # noqa: SLF001
-        transport._compress_threshold = self._compress_threshold  # noqa: SLF001
+        transport = TCPTransport._from_streams(
+            reader,
+            writer,
+            compress_threshold=self._compress_threshold,
+            encryption_key=self._encryption_key,
+        )
+        logger.info("Connection from %s:%s", transport.host, transport.port)
         await self._queue.put(transport)
